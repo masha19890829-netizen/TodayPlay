@@ -1,0 +1,11 @@
+# Copy this file to `.dev.vars` for local Cloudflare Worker development.
+# Never commit `.dev.vars`; it contains real secrets.
+
+AI_PROVIDER=kimi
+KIMI_API_KEY=sk-your-kimi-api-key-here
+KIMI_BASE_URL=https://api.moonshot.cn/v1
+KIMI_MODEL=moonshot-v1-8k
+
+# Optional app-to-gateway shared secret for local/dev testing.
+# Keep this backend-only until the Android client auth design is finalized.
+AI_GATEWAY_SHARED_SECRET=change-me-for-local-dev
