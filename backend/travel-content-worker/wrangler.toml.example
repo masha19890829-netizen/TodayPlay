@@ -1,0 +1,6 @@
+name = "todayplay-travel-content"
+main = "worker.js"
+compatibility_date = "2026-06-10"
+
+[vars]
+TODAYPLAY_ALLOWED_ORIGIN = "https://your-public-site.example"

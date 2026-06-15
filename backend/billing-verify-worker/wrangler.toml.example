@@ -1,0 +1,10 @@
+name = "todayplay-billing-verify"
+main = "worker.js"
+compatibility_date = "2026-06-08"
+
+[vars]
+TODAYPLAY_PACKAGE_NAME = "com.todayplay.app"
+
+# Configure secrets with:
+# wrangler secret put GOOGLE_SERVICE_ACCOUNT_EMAIL
+# wrangler secret put GOOGLE_PRIVATE_KEY

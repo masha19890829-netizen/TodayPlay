@@ -1,0 +1,655 @@
+#!/usr/bin/env python3
+"""Small app-layer regression audit for release preflight.
+
+This is a source-level guard used until the Android app module has a proper JVM
+or instrumentation test suite. It verifies that several high-risk behaviors are
+still wired into the app code before packaging.
+"""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+
+def read_text(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return path.read_text(encoding="utf-8", errors="replace")
+    except FileNotFoundError:
+        return ""
+
+
+def has_all(text: str, tokens: list[str]) -> bool:
+    return all(token in text for token in tokens)
+
+
+def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
+    root = project_root.resolve()
+    app_root = root / "app" / "src" / "main" / "java" / "com" / "todayplay" / "app"
+
+    generator = read_text(app_root / "generator" / "LocalItineraryGenerator.kt")
+    billing = read_text(app_root / "billing" / "PlayBillingGateway.kt")
+    shop = read_text(app_root / "ui" / "screens" / "ShopScreen.kt")
+    repository = read_text(app_root / "data" / "QuestRepository.kt")
+    store = read_text(app_root / "data" / "QuestHistoryStore.kt")
+    map_nav = read_text(app_root / "navigation" / "MapNavigator.kt")
+    result_screen = read_text(app_root / "ui" / "screens" / "QuestResultScreen.kt")
+    home_screen = read_text(app_root / "ui" / "screens" / "HomeScreen.kt")
+    splash_screen = read_text(app_root / "ui" / "screens" / "SplashScreen.kt")
+    loading_screen = read_text(app_root / "ui" / "screens" / "LoadingScreen.kt")
+    home_route_content = read_text(app_root / "data" / "HomeRouteContentCatalog.kt")
+    components = read_text(app_root / "ui" / "components" / "TodayPlayComponents.kt")
+    theme_colors = read_text(app_root / "ui" / "theme" / "Color.kt")
+    anime_date_asset = root / "app" / "src" / "main" / "res" / "drawable" / "anime_date_invitation.xml"
+    anime_evening_asset = root / "app" / "src" / "main" / "res" / "drawable" / "anime_evening_walk.xml"
+    anime_cafe_asset = root / "app" / "src" / "main" / "res" / "drawable" / "anime_cafe_friends.xml"
+    anime_ticket_asset = root / "app" / "src" / "main" / "res" / "drawable" / "anime_ticket_sky.xml"
+    romantic_hero_asset = root / "app" / "src" / "main" / "res" / "drawable-nodpi" / "romantic_hero.png"
+    romantic_date_asset = root / "app" / "src" / "main" / "res" / "drawable-nodpi" / "romantic_date.png"
+    romantic_friend_asset = root / "app" / "src" / "main" / "res" / "drawable-nodpi" / "romantic_friend.png"
+    romantic_solo_asset = root / "app" / "src" / "main" / "res" / "drawable-nodpi" / "romantic_solo.png"
+    romantic_ticket_asset = root / "app" / "src" / "main" / "res" / "drawable-nodpi" / "romantic_ticket.png"
+    share_screen = read_text(app_root / "ui" / "screens" / "ShareCardScreen.kt")
+    privacy_screen = read_text(app_root / "ui" / "screens" / "PrivacyScreen.kt")
+    view_model = read_text(app_root / "TodayPlayViewModel.kt")
+    main_activity = read_text(app_root / "MainActivity.kt")
+    quest_models = read_text(app_root / "model" / "QuestModels.kt")
+    auth_models = read_text(app_root / "model" / "AuthModels.kt")
+    google_gateway = read_text(app_root / "auth" / "GoogleAccountGateway.kt")
+    locale_copy = read_text(app_root / "localization" / "TodayPlayLocale.kt")
+    privacy_copy = read_text(app_root / "localization" / "PrivacyCopy.kt")
+    build_gradle = read_text(root / "app" / "build.gradle.kts")
+
+    checks: list[dict[str, str]] = []
+
+    def add(name: str, ok: bool, evidence: str, action: str) -> None:
+        checks.append({
+            "name": name,
+            "status": "pass" if ok else "fail",
+            "evidence": evidence,
+            "action": action,
+        })
+
+    add(
+        "V0.9.58 external-test version metadata",
+        'versionName = "0.9.58"' in build_gradle and "versionCode = 76" in build_gradle,
+        "expected versionName=0.9.58 and versionCode=76",
+        "Keep every external-test APK versioned independently so testers never install an ambiguous build.",
+    )
+
+    clean_generation_tokens = [
+        "copy.safeTitleFor",
+        "copy.safeRouteSummaryFor",
+        "copy.safeCoverageNoteFor",
+        "copy.localizePoi",
+        "ContentComplianceNote",
+    ]
+    add(
+        "Route generation clean display path",
+        has_all(generator, clean_generation_tokens),
+        f"tokens={clean_generation_tokens}",
+        "Keep generated visible route copy behind safe/localized copy helpers.",
+    )
+
+    billing_guard_ok = (
+        'BuildConfig.BILLING_VERIFY_ENDPOINT.trim().startsWith("https://")' in shop
+        and "enabled = paymentsEnabled" in shop
+        and "paymentUnavailable" in shop
+        and "isVerificationEndpointConfigured()" in billing
+        and billing.find("isVerificationEndpointConfigured()") < billing.find("launchBillingFlow")
+    )
+    add(
+        "Billing disabled without verify endpoint",
+        billing_guard_ok,
+        "Shop disables purchase buttons and gateway blocks launchBillingFlow unless HTTPS verification endpoint is configured.",
+        "Do not allow paid entitlement purchase flow before backend verification endpoint exists.",
+    )
+
+    billing_query_split_tokens = [
+        "TodayPlayProducts.all.groupBy",
+        "billingProductType(product.kind)",
+        "ProductType.SUBS",
+        "ProductType.INAPP",
+        "runCatching",
+    ]
+    add(
+        "Billing product details query split by product type",
+        has_all(billing, billing_query_split_tokens),
+        f"tokens={billing_query_split_tokens}",
+        "Query subscriptions and one-time products separately; BillingClient rejects mixed product types in one request.",
+    )
+
+    history_ok = has_all(repository, [
+        "fun clearHistory()",
+        "store.clearRecords()",
+        "fun updateTaskStatus",
+        "rewardPointsForStatus",
+        "filterNot { it.quest.questId == record.quest.questId }",
+    ]) and has_all(store, [
+        "fun saveRecords",
+        "fun loadRecords",
+        "fun clearRecords",
+        "remove(KEY_RECORDS)",
+        "KEY_RECORDS",
+    ])
+    add(
+        "History upsert, status, reward, and clear",
+        history_ok,
+        "Repository upserts records, updates task status/rewards, and clears persisted store records.",
+        "Keep local history persistence and deletion behavior covered by release preflight.",
+    )
+
+    map_ok = has_all(map_nav, [
+        'setPackage("com.autonavi.minimap")',
+        "fallbackIntent",
+        "ClipboardManager",
+        "copyAddress",
+        "mapUnavailableCopiedAddress",
+    ])
+    add(
+        "Map fallback constructability",
+        map_ok,
+        "MapNavigator attempts AMap, then browser fallback, then clipboard fallback.",
+        "Keep external navigation available without requesting sensitive location permission.",
+    )
+
+    stop_swap_tokens = [
+        "StopSwapPanel",
+        "stopSwapAction",
+        "stopSwapSelected",
+        "onUseSwap",
+        "TaskStatus.Skipped",
+        "isResolved()",
+    ]
+    add(
+        "Route stop swap path",
+        has_all(result_screen, stop_swap_tokens),
+        f"tokens={stop_swap_tokens}",
+        "Keep single-stop swap available so users can continue a route without regenerating the whole quest.",
+    )
+
+    route_edit_tokens = [
+        "fun replaceStop",
+        "filterNot { candidate -> candidate.poiId in usedPoiIds }",
+        "copy.safeTitleFor",
+        "taskStatuses = record.progress.taskStatuses - clearedTaskId",
+    ]
+    route_edit_wiring_tokens = [
+        "fun replaceRouteStop",
+        "generator.replaceRouteStop",
+        "repository.replaceRouteStop",
+        "onReplaceRouteStop",
+        "stopRerollAction",
+    ]
+    route_edit_ok = has_all(generator, route_edit_tokens) and has_all(
+        repository + view_model + result_screen,
+        route_edit_wiring_tokens,
+    )
+    add(
+        "Route stop replacement path",
+        route_edit_ok,
+        f"generatorTokens={route_edit_tokens}; wiringTokens={route_edit_wiring_tokens}",
+        "Keep route editing able to replace one stop, persist the updated record, and clear stale stop progress/rewards.",
+    )
+
+    route_preview_generator_tokens = [
+        "fun previewStopReplacement",
+        "RouteStopReplacementPreview",
+        "selectReplacement",
+        "sameCategory",
+        "matchedTags",
+        "stayDeltaMinutes",
+    ]
+    route_preview_wiring_tokens = [
+        "fun previewRouteStopReplacement",
+        "generator.previewRouteStopReplacement",
+        "route_stop_replace_preview",
+        "onPreviewRouteStopReplacement",
+        "ReplacementPreviewPanel",
+        "stopRerollConfirmAction",
+        "stopRerollCancelAction",
+    ]
+    route_preview_ok = has_all(generator, route_preview_generator_tokens) and has_all(
+        repository + view_model + result_screen + main_activity,
+        route_preview_wiring_tokens,
+    )
+    add(
+        "Route stop replacement preview path",
+        route_preview_ok,
+        f"generatorTokens={route_preview_generator_tokens}; wiringTokens={route_preview_wiring_tokens}",
+        "Keep single-stop replacement as a preview-and-confirm flow so users do not accidentally lose a liked stop.",
+    )
+
+    route_restore_model_tokens = [
+        "RouteStopRestoreSnapshot",
+        "lastRouteStopRestore",
+        "previousStop: RouteStop",
+        "restoredRewardPoints",
+    ]
+    route_restore_storage_tokens = [
+        '"lastRouteStopRestore"',
+        "toRouteStopRestoreSnapshot",
+        "restoredFeedbackReasons",
+        "restoredRewardPoints",
+    ]
+    route_restore_wiring_tokens = [
+        "fun restoreStop",
+        "lastRouteStopRestore = RouteStopRestoreSnapshot",
+        "lastRouteStopRestore = null",
+        "fun restoreRouteStop",
+        "repository.restoreRouteStop",
+        "route_stop_restore",
+        "onRestoreRouteStop",
+        "RestoreStopPanel",
+        "stopRestoreAction",
+    ]
+    route_restore_ok = (
+        has_all(quest_models, route_restore_model_tokens)
+        and has_all(store, route_restore_storage_tokens)
+        and has_all(generator + repository + view_model + main_activity + result_screen, route_restore_wiring_tokens)
+    )
+    add(
+        "Route stop restore path",
+        route_restore_ok,
+        f"modelTokens={route_restore_model_tokens}; storageTokens={route_restore_storage_tokens}; wiringTokens={route_restore_wiring_tokens}",
+        "Keep replacement undo able to restore the previous stop, status, feedback, and points from local history.",
+    )
+
+    city_theme_copy_tokens = [
+        "HomeCityThemePack",
+        "cityThemePacks",
+        "mobilityPressure",
+        "contentStatus",
+        "sourceStatus",
+        "stopNames",
+        "fitCue",
+        "cityThemesTitle",
+        "cityThemesEnglish",
+        "cityThemeGenerate",
+        "Old-street snack hangout",
+        "Lakeside solo reset",
+        "Boundary-safe night walk",
+    ]
+    city_theme_home_tokens = [
+        "CityThemeCards",
+        "CityThemeCard",
+        "CityThemeRouteMotif",
+        'SectionHeader("02"',
+        "HomeRouteContentCatalog.cityThemePacks",
+        "item.mobilityPressure",
+        "item.contentStatus",
+        "item.sourceStatus",
+        "strings.cityThemeGenerate",
+        "RoseGold.copy",
+        "LineBeige",
+        "verticalScroll(rememberScrollState())",
+    ]
+    city_theme_ok = (
+        has_all(home_route_content + locale_copy, city_theme_copy_tokens)
+        and has_all(home_screen, city_theme_home_tokens)
+        and "strings.homeCityThemes" not in home_screen
+    )
+    add(
+        "Home city theme route entry",
+        city_theme_ok,
+        f"copyTokens={city_theme_copy_tokens}; homeTokens={city_theme_home_tokens}",
+        "Keep city theme cards as a first-screen route-generation path that is local, curated, and independent of external APIs.",
+    )
+
+    store_conversion_tokens = [
+        'const val CHANNEL_DATE = "date"',
+        'const val CHANNEL_FRIEND_LOOP = "friend-loop"',
+        'const val CHANNEL_SOLO_RESET = "solo-reset"',
+        "dateRoutePacks",
+        "friendLoopPacks",
+        "soloResetPacks",
+        "datePackChannels",
+        "friendLoopChannels",
+        "soloResetChannels",
+        "allRoutePacks",
+        "心动路线",
+        "今晚组局",
+        "慢慢走",
+        "routePackItems(",
+        '"date"',
+        '"friend-loop"',
+        '"solo-reset"',
+    ]
+    store_conversion_content_ok = (
+        home_route_content.count("HomeCityThemePack(") >= 15
+        and home_route_content.count("stopNames = listOf(") >= 15
+        and home_route_content.count("contentStatus = ") >= 15
+        and home_route_content.count("sourceStatus = ") >= 15
+    )
+    add(
+        "Store conversion home channels",
+        has_all(home_route_content + home_screen, store_conversion_tokens)
+        and store_conversion_content_ok
+        and 'HomeContentChannel(HomeRouteContentCatalog.CHANNEL_RELATIONSHIP' not in home_screen,
+        f"tokens={store_conversion_tokens}; contentOk={store_conversion_content_ok}",
+        "Keep the store-conversion home path focused on Today, Date, Friends, Solo, and City packs, with five real local sample route packs per strong channel.",
+    )
+
+    add(
+        "External-test home first-screen de-clutter",
+        "copy.cityChip" not in home_screen
+        and "HomeDiscoveryTopBar" in home_screen
+        and "HomeEmotionHeroCard" in home_screen
+        and "HomeWaterfallFeed" in home_screen,
+        "top bar no longer renders the city-pack pill; hero, channels, and feed remain present",
+        "Keep Settings and discovery separate; do not put city packs, language, payment, or long setup controls back into the first top row.",
+    )
+
+    result_external_test_tokens = [
+        ".height(178.dp)",
+        ".height(132.dp)",
+        "KawaiiChip(text = copy.executionOpenMap",
+        "copy.executionCompleteStop(currentStop.checkInTask.rewardPoints)",
+        "RouteProgressTimeline(",
+    ]
+    add(
+        "External-test result first action exposure",
+        has_all(result_screen, result_external_test_tokens)
+        and result_screen.find("copy.executionCompleteStop(currentStop.checkInTask.rewardPoints)") < result_screen.find("RouteProgressTimeline("),
+        f"tokens={result_external_test_tokens}",
+        "Keep the result page compact enough that testers see the current stop and primary route action before timeline/detail overflow.",
+    )
+
+    sensory_home_tokens = [
+        "HomeEmotionHeroCard",
+        "romantic_hero",
+        "romantic-home-hero",
+        "heroBadge",
+        "heroTitle",
+        "heroSubtitle",
+        "heroAction",
+        "StopPreviewPill",
+        "route-card-pulse",
+        "item.chips.take(2)",
+    ]
+    add(
+        "Sensory romantic home redesign",
+        has_all(home_screen, sensory_home_tokens)
+        and romantic_hero_asset.exists(),
+        f"tokens={sensory_home_tokens}; heroAssetExists={romantic_hero_asset.exists()}",
+        "Keep the first mobile impression image-led, romantic, animated, and lighter than the older text-heavy route cards.",
+    )
+
+    romantic_visual_tokens = [
+        "romantic_hero",
+        "romantic_date",
+        "romantic_friend",
+        "romantic_solo",
+        "romantic_ticket",
+        "PaperWhite = Color(0xFFF8F3EC)",
+        "CherryPressed = Color(0xFFB76267)",
+        "BlackCherry = Color(0xFF3B1B1F)",
+    ]
+    old_placeholder_refs_removed = all(
+        token not in home_screen + result_screen + shop + locale_copy + loading_screen + components
+        for token in [
+            "anime_date_invitation",
+            "anime_evening_walk",
+            "anime_cafe_friends",
+            "anime_ticket_sky",
+            "hero_date_invitation",
+            "hero_romantic_dusk",
+            "hero_cozy_cafe",
+            "hero_premium_tickets",
+        ]
+    )
+    romantic_assets_exist = all(
+        asset.exists()
+        for asset in [
+            romantic_hero_asset,
+            romantic_date_asset,
+            romantic_friend_asset,
+            romantic_solo_asset,
+            romantic_ticket_asset,
+        ]
+    )
+    add(
+        "Romantic minimalism visual direction",
+        has_all(home_screen + result_screen + shop + locale_copy + loading_screen + components + theme_colors, romantic_visual_tokens)
+        and old_placeholder_refs_removed
+        and romantic_assets_exist,
+        f"tokens={romantic_visual_tokens}; oldPlaceholderRefsRemoved={old_placeholder_refs_removed}; romanticAssetsExist={romantic_assets_exist}",
+        "Keep the primary visual system on project-local cinematic romantic minimalism bitmap assets instead of developer-drawn placeholder vectors.",
+    )
+
+    motion_tokens = [
+        "AnimatedContent(",
+        "app-screen-transition",
+        "SplashRouteMotion",
+        "splash-intro-alpha",
+        "RouteBuildAnimation",
+        "route-loading-motion",
+        "route-loading-draw",
+    ]
+    add(
+        "Opening transition and loading motion",
+        has_all(main_activity + splash_screen + loading_screen, motion_tokens),
+        f"tokens={motion_tokens}",
+        "Keep opening, inter-screen, and route-generation loading moments animated in the romantic cinematic visual style.",
+    )
+
+    adaptive_text_tokens = [
+        "statusBarsPadding()",
+        "navigationBarsPadding()",
+        "bottomHomeIcon",
+        "bottomSavedIcon",
+        "bottomHistoryIcon",
+        "bottomSettingsIcon",
+        'settingsIcon = "设置"',
+        'settingsIcon = "設定"',
+        'settingsIcon = "Set"',
+        ".widthIn(max = 210.dp)",
+        "Modifier.weight(1f, fill = false)",
+        "text = \"<\"",
+    ]
+    glyph_sensitive_sources = [
+        home_screen,
+        components,
+        result_screen,
+        read_text(app_root / "ui" / "screens" / "HistoryScreen.kt"),
+        read_text(app_root / "ui" / "screens" / "PrivacyScreen.kt"),
+        read_text(app_root / "ui" / "screens" / "QuickStartScreen.kt"),
+        read_text(app_root / "ui" / "screens" / "ShareCardScreen.kt"),
+        read_text(app_root / "ui" / "screens" / "ShopScreen.kt"),
+        read_text(app_root / "ui" / "screens" / "SplashScreen.kt"),
+        read_text(app_root / "ui" / "screens" / "LoadingScreen.kt"),
+        read_text(app_root / "localization" / "TodayPlayLocale.kt"),
+        read_text(app_root / "localization" / "ShareCopy.kt"),
+    ]
+    glyph_sensitive_text = "\n".join(glyph_sensitive_sources)
+    risky_home_glyphs_removed = all(token not in home_screen for token in ['"⚙"', '"⌂"', '"↺"', '"♡"'])
+    risky_app_glyphs_removed = all(token not in glyph_sensitive_text for token in ["♥", "♡", "⚙", "⌂", "↺", "‹", "✧"])
+    add(
+        "Foldable safe text and insets",
+        has_all(home_screen + components, adaptive_text_tokens)
+        and risky_home_glyphs_removed
+        and risky_app_glyphs_removed,
+        f"tokens={adaptive_text_tokens}; riskyHomeGlyphsRemoved={risky_home_glyphs_removed}; riskyAppGlyphsRemoved={risky_app_glyphs_removed}",
+        "Keep foldable and narrow-screen layouts out of the status/navigation bars and avoid OEM-font-sensitive glyph icons in primary home navigation.",
+    )
+
+    route_execution_tokens = [
+        "RouteExecutionCard",
+        "currentRunnableStop",
+        'SectionHeader("LIVE"',
+        "executionCurrentStopLabel",
+        "executionNextActionLabel",
+        "ExecutionMetricTile",
+        "RouteProgressTimeline",
+        "TimelineDot",
+        "executionTimelineLabel",
+        "executionCompleteStop",
+        "executionOpenMap",
+    ]
+    route_execution_ok = has_all(result_screen, route_execution_tokens) and "executionUseSwap" not in result_screen
+    add(
+        "Result page live route mode",
+        route_execution_ok,
+        f"tokens={route_execution_tokens}; excludesTopLevelSwap={'executionUseSwap' not in result_screen}",
+        "Keep the result page focused on the current stop, next action, reward, and safe progress actions without duplicating replacement/restore decisions.",
+    )
+
+    account_tokens = [
+        "AccountSession",
+        "AccountProvider",
+        "localTester",
+        "idTokenForBackend",
+    ]
+    google_auth_tokens = [
+        "CredentialManager.create",
+        "GetGoogleIdOption.Builder",
+        "BuildConfig.GOOGLE_WEB_CLIENT_ID",
+        "GoogleIdTokenCredential.createFrom",
+        "backendVerified = false",
+        "clearCredentialState",
+    ]
+    account_ui_tokens = [
+        "AccountAccessPanel",
+        "Continue with Google",
+        "Use local tester profile",
+        "ShareAccountSection",
+        "withShareAttribution",
+        "accountSession.shareName",
+    ]
+    account_ok = (
+        has_all(auth_models, account_tokens)
+        and has_all(google_gateway, google_auth_tokens)
+        and has_all(home_screen + share_screen + main_activity, account_ui_tokens)
+    )
+    add(
+        "Account sign-in scaffold and share attribution",
+        account_ok,
+        f"modelTokens={account_tokens}; googleTokens={google_auth_tokens}; uiTokens={account_ui_tokens}",
+        "Keep Google sign-in behind OAuth configuration, preserve local tester mode for trial APKs, and only use Google ID tokens after backend verification.",
+    )
+
+    visual_weight_tokens = [
+        "HomeWaterfallFeed",
+        "RouteFeedCard",
+        "HomeScenarioChips",
+        "HomeQuickPlanStrip",
+        "HomeContentChannelRail",
+        "homeContentChannels",
+        "selectedChannel",
+        "HomeRouteContentCatalog.CHANNEL_TODAY",
+        "HomeRouteContentCatalog.CHANNEL_CITY",
+        "HomeRouteContentCatalog.CHANNEL_DATE",
+        "HomeRouteContentCatalog.CHANNEL_FRIEND_LOOP",
+        "HomeRouteContentCatalog.CHANNEL_SOLO_RESET",
+        "CityRoutePackPreview",
+        "routeStopsFor",
+        "routeProofFor",
+        "homeDiscoveryFeed",
+        "selectedScenario",
+        "savedRouteKeys",
+        "RouteMiniMap(",
+        "RouteVisualPreviewCard",
+        "RouteSketchMap",
+        "RouteStopPill",
+        "visualMapTitle",
+        "FeedRouteProof",
+        "同城校验",
+        "maxLines = 2",
+    ]
+    add(
+        "Feed-first recommendations and route preview",
+        has_all(home_screen + result_screen + home_route_content, visual_weight_tokens)
+        and "HomeBrandHeader(strings = strings" not in home_screen,
+        f"tokens={visual_weight_tokens}",
+        "Keep the mobile experience from regressing into dense text-first onboarding; home needs scenario chips, waterfall-like route cards, save/start actions, and result pages need a map-like route preview.",
+    )
+
+    same_city_route_tokens = [
+        "resolveRouteCity(",
+        "withRouteCity(routeCity)",
+        "sameCityOnly(routeCity)",
+        "city = routeCity",
+        "candidateRouteCount = candidates.size",
+    ]
+    home_city_pack_tokens = [
+        'city = "上海"',
+        'city = "深圳"',
+        'city = "广州"',
+        'city = "杭州"',
+        'cityChip = "城市路线包"',
+    ]
+    add(
+        "Same-city route planning guard",
+        has_all(generator, same_city_route_tokens)
+        and has_all(home_screen, home_city_pack_tokens)
+        and 'city = "全球热门城市"' not in home_screen
+        and 'cityChip = "全球灵感"' not in home_screen,
+        f"generatorTokens={same_city_route_tokens}; homeCityTokens={home_city_pack_tokens}",
+        "Keep every generated route locked to one concrete city and prevent clickable home recommendations from using broad global city placeholders.",
+    )
+
+    language_settings_tokens = [
+        "languageTitle",
+        "TodayPlayLocale.entries.forEach",
+        "onLocaleSelected(locale)",
+        'navLabel = "设置"',
+        'title = "设置与隐私"',
+    ]
+    language_in_settings_ok = (
+        has_all(privacy_screen + privacy_copy, language_settings_tokens)
+        and "TodayPlayLocale.entries.forEach" not in home_screen
+        and "onLocaleSelected: (TodayPlayLocale) -> Unit" not in home_screen
+    )
+    add(
+        "Language selector lives in settings",
+        language_in_settings_ok,
+        f"settingsTokens={language_settings_tokens}; homeHasLanguageSelector={'TodayPlayLocale.entries.forEach' in home_screen}",
+        "Keep language selection out of the home recommendation flow; it belongs in Settings & Privacy.",
+    )
+
+    system_back_tokens = [
+        "BackHandler(enabled = screen != AppScreen.Home && screen != AppScreen.Splash)",
+        "AppScreen.Result -> screen = AppScreen.Create",
+        "AppScreen.ShareCard -> screen = AppScreen.Result",
+        "viewModel.cancelGeneration()",
+        "AppScreen.Shop -> screen = AppScreen.Home",
+    ]
+    add(
+        "System back navigation stays inside app",
+        has_all(main_activity, system_back_tokens),
+        f"tokens={system_back_tokens}",
+        "Keep Android system back from exiting subpages directly; route, shop, privacy, history, and loading screens need explicit in-app destinations.",
+    )
+
+    overall = "pass" if all(check["status"] == "pass" for check in checks) else "fail"
+    return checks, overall
+
+
+def print_markdown(checks: list[dict[str, str]], overall: str, project_root: Path) -> None:
+    print("# App Regression Audit")
+    print()
+    print(f"- Project: `{project_root.resolve()}`")
+    print(f"- Overall: `{overall}`")
+    print()
+    print("| Check | Status | Evidence | Required action |")
+    print("| --- | --- | --- | --- |")
+    for check in checks:
+        print(f"| {check['name']} | `{check['status']}` | {check['evidence']} | {check['action']} |")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run small app-layer source regression audit.")
+    parser.add_argument("project", nargs="?", default=".", help="Android project root")
+    args = parser.parse_args()
+
+    project_root = Path(args.project)
+    checks, overall = audit(project_root)
+    print_markdown(checks, overall, project_root)
+    if overall != "pass":
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()
