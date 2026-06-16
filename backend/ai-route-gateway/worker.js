@@ -2,6 +2,8 @@ const DEFAULT_KIMI_BASE_URL = "https://api.moonshot.cn/v1";
 const DEFAULT_KIMI_MODEL = "moonshot-v1-8k";
 const MAX_FREE_TEXT_LENGTH = 600;
 const MAX_CANDIDATE_STOPS = 12;
+const DEFAULT_KIMI_TIMEOUT_MS = 25000;
+const LOCAL_ANDROID_HOSTS = new Set(["10.0.2.2", "127.0.0.1", "localhost"]);
 
 export default {
   async fetch(request, env) {
@@ -16,11 +18,7 @@ export default {
     }
 
     if (request.method === "GET" && url.pathname === "/ai/provider/status") {
-      return json({
-        status: env.KIMI_API_KEY ? "configured" : "not_configured",
-        provider: env.AI_PROVIDER || "kimi",
-        model: env.KIMI_MODEL || DEFAULT_KIMI_MODEL,
-      });
+      return handleProviderStatus(request, env, url);
     }
 
     if (request.method === "POST" && url.pathname === "/ai/route/generate") {
@@ -64,8 +62,45 @@ async function handleRouteGenerate(request, env) {
       usedFallback: false,
       ...normalized.value,
     });
-  } catch {
-    return json(buildFallback(body, "kimi_request_failed"));
+  } catch (error) {
+    return json(buildFallback(body, providerErrorReason(error)));
+  }
+}
+
+async function handleProviderStatus(request, env, url) {
+  const payload = {
+    status: env.KIMI_API_KEY ? "configured" : "not_configured",
+    provider: env.AI_PROVIDER || "kimi",
+    model: env.KIMI_MODEL || DEFAULT_KIMI_MODEL,
+    realCallProbe: "add ?probe=true to test Kimi without exposing secrets",
+  };
+
+  if (url.searchParams.get("probe") !== "true") {
+    return json(payload);
+  }
+
+  if (!isAuthorized(request, env)) {
+    return json({ error: "unauthorized" }, 401);
+  }
+
+  if (!env.KIMI_API_KEY) {
+    return json({
+      ...payload,
+      probe: { status: "not_configured", reason: "kimi_not_configured" },
+    });
+  }
+
+  try {
+    await callKimiProbe(env);
+    return json({
+      ...payload,
+      probe: { status: "ready", provider: "kimi" },
+    });
+  } catch (error) {
+    return json({
+      ...payload,
+      probe: { status: "failed", reason: providerErrorReason(error) },
+    });
   }
 }
 
@@ -73,7 +108,13 @@ function isAuthorized(request, env) {
   const expected = env.AI_GATEWAY_SHARED_SECRET;
   if (!expected) return true;
   const provided = request.headers.get("x-todayplay-gateway-secret");
-  return provided === expected;
+  if (provided === expected) return true;
+  return isLocalAndroidRequest(request);
+}
+
+function isLocalAndroidRequest(request) {
+  const url = new URL(request.url);
+  return url.protocol === "http:" && LOCAL_ANDROID_HOSTS.has(url.hostname.toLowerCase());
 }
 
 function validateRequest(body) {
@@ -100,44 +141,92 @@ function validateRequest(body) {
 async function callKimi(body, env) {
   const baseUrl = (env.KIMI_BASE_URL || DEFAULT_KIMI_BASE_URL).replace(/\/$/, "");
   const model = env.KIMI_MODEL || DEFAULT_KIMI_MODEL;
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${env.KIMI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.35,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: [
-            "You are TodayPlay's route planner.",
-            "Return strict JSON only.",
-            "You may only select stop IDs from candidateStops.",
-            "Never invent places, ratings, popularity, social proof, official map data, or discounts.",
-            "Keep relationship tasks respectful, public, low-pressure, and easy to exit.",
-          ].join(" "),
-        },
-        {
-          role: "user",
-          content: JSON.stringify(buildSafePromptPayload(body)),
-        },
-      ],
-    }),
+  const data = await fetchKimiJson(`${baseUrl}/chat/completions`, env, {
+    model,
+    temperature: 0.35,
+    max_tokens: 520,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content: [
+          "You are TodayPlay's route planner.",
+          "Return strict JSON only.",
+          "You may only select stop IDs from candidateStops.",
+          "Never invent places, ratings, popularity, social proof, official map data, or discounts.",
+          "Keep relationship tasks respectful, public, low-pressure, and easy to exit.",
+        ].join(" "),
+      },
+      {
+        role: "user",
+        content: JSON.stringify(buildSafePromptPayload(body)),
+      },
+    ],
   });
 
-  if (!response.ok) {
-    throw new Error("kimi_non_2xx");
-  }
-  const data = await response.json();
   const content = data?.choices?.[0]?.message?.content;
   if (!content || typeof content !== "string") {
-    throw new Error("kimi_empty_content");
+    throw providerError("kimi_empty_content");
   }
   return parseJsonObject(content);
+}
+
+async function callKimiProbe(env) {
+  const baseUrl = (env.KIMI_BASE_URL || DEFAULT_KIMI_BASE_URL).replace(/\/$/, "");
+  const model = env.KIMI_MODEL || DEFAULT_KIMI_MODEL;
+  const response = await fetchKimiJson(`${baseUrl}/chat/completions`, env, {
+    model,
+    temperature: 0,
+    max_tokens: 64,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content: "Return strict JSON only.",
+      },
+      {
+        role: "user",
+        content: JSON.stringify({
+          task: "TodayPlay Kimi connectivity probe",
+          outputSchema: { ok: true },
+        }),
+      },
+    ],
+  });
+
+  const content = response?.choices?.[0]?.message?.content;
+  const parsed = typeof content === "string" ? parseJsonObject(content) : null;
+  if (!parsed || parsed.ok !== true) {
+    throw providerError("kimi_invalid_probe_json");
+  }
+}
+
+async function fetchKimiJson(url, env, payload) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort("kimi_timeout"), kimiTimeoutMs(env));
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${env.KIMI_API_KEY}`,
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw providerError(`kimi_http_${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw providerError("kimi_timeout");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 function buildSafePromptPayload(body) {
@@ -244,6 +333,22 @@ function parseJsonObject(raw) {
     return JSON.parse(trimmed.slice(start, end + 1));
   }
   throw new Error("not_json");
+}
+
+function kimiTimeoutMs(env) {
+  const parsed = Number(env.KIMI_TIMEOUT_MS);
+  if (Number.isFinite(parsed) && parsed >= 1000 && parsed <= 30000) return parsed;
+  return DEFAULT_KIMI_TIMEOUT_MS;
+}
+
+function providerError(reason) {
+  const error = new Error(reason);
+  error.reason = reason;
+  return error;
+}
+
+function providerErrorReason(error) {
+  return typeof error?.reason === "string" ? error.reason : "kimi_request_failed";
 }
 
 function stringValue(value) {

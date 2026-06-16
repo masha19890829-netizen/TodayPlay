@@ -21,12 +21,14 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -534,7 +536,7 @@ fun HeartPrimaryButton(
         enabled = enabled,
         modifier = modifier
             .fillMaxWidth()
-            .height(58.dp)
+            .heightIn(min = 58.dp)
             .scale(scale),
         shape = RoundedCornerShape(999.dp),
         colors = ButtonDefaults.buttonColors(
@@ -545,13 +547,15 @@ fun HeartPrimaryButton(
         ),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 5.dp, pressedElevation = 1.dp),
         interactionSource = interactionSource,
+        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 9.dp),
     ) {
         Text(
             text = text,
             style = MaterialTheme.typography.titleMedium,
             color = if (enabled) GalleryWhite else WarmGray,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
         )
     }
 }
@@ -566,7 +570,7 @@ fun GhostButton(
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(50.dp),
+        modifier = modifier.heightIn(min = 50.dp),
         shape = RoundedCornerShape(999.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = GalleryWhite.copy(alpha = 0.72f),
@@ -576,12 +580,14 @@ fun GhostButton(
         ),
         border = BorderStroke(1.dp, LineBeige),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
     ) {
         Text(
             text = text,
             style = MaterialTheme.typography.labelLarge,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
         )
     }
 }

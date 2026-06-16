@@ -22,6 +22,8 @@
 !.dev.vars.example
 __pycache__/
 *.pyc
+node_modules/
+.wrangler/
 .idea/
 .DS_Store
 *.jks

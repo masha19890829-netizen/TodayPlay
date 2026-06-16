@@ -20,9 +20,12 @@ class AiQuestGenerator(
         if (stops.isEmpty()) return localQuest.withFallbackTag()
 
         val payload = buildPayload(input, stops)
-        val response = runCatching { requestGateway(endpoint, payload) }.getOrNull()
-            ?: return localQuest.withFallbackTag()
-        if (response.optBoolean("usedFallback", true)) return localQuest.withFallbackTag()
+        val response = runCatching { requestGateway(endpoint, payload) }.getOrElse {
+            return localQuest.withFallbackTag("android_gateway_request_failed")
+        }
+        if (response.optBoolean("usedFallback", true)) {
+            return localQuest.withFallbackTag(response.optString("reason").takeIf { it.isNotBlank() })
+        }
 
         val selectedStopIds = response.optJSONArray("selectedStopIds").toStringList()
             .filter { id -> stops.any { stop -> stop.stopId == id } }
@@ -100,7 +103,7 @@ class AiQuestGenerator(
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 7000
-            readTimeout = 10000
+            readTimeout = 28000
             doOutput = true
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
             setRequestProperty("Accept", "application/json")
@@ -119,13 +122,31 @@ class AiQuestGenerator(
         return JSONObject(body)
     }
 
-    private fun Quest.withFallbackTag(): Quest {
+    private fun Quest.withFallbackTag(reason: String? = null): Quest {
         return copy(
-            tags = (tags + "本地兜底").distinct().take(6),
+            tags = (tags + fallbackTagFor(reason)).distinct().take(6),
             itineraryPlan = itineraryPlan?.copy(
-                marketCoverageNote = "Local fallback route. AI gateway was not configured or did not return a valid same-city route.",
+                marketCoverageNote = fallbackNoteFor(reason),
             ),
         )
+    }
+
+    private fun fallbackTagFor(reason: String?): String {
+        return when {
+            reason == null -> "本地兜底"
+            reason.contains("429") -> "AI限流"
+            reason.contains("timeout") -> "AI超时"
+            else -> "本地兜底"
+        }
+    }
+
+    private fun fallbackNoteFor(reason: String?): String {
+        return when {
+            reason == null -> "Local fallback route. AI gateway was not configured or did not return a valid same-city route."
+            reason.contains("429") -> "AI gateway is rate-limited by Kimi right now; showing a same-city local sample route."
+            reason.contains("timeout") -> "AI gateway timed out before returning a valid same-city route; showing a local sample route."
+            else -> "AI gateway returned $reason; showing a same-city local sample route."
+        }
     }
 
     private fun String.normalizedGatewayEndpoint(): String? {

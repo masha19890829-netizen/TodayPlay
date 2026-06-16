@@ -81,9 +81,9 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         })
 
     add(
-        "V0.9.59 AI external-test version metadata",
-        'versionName = "0.9.59"' in build_gradle and "versionCode = 77" in build_gradle,
-        "expected versionName=0.9.59 and versionCode=77",
+        "V0.9.60 AI external-test version metadata",
+        'versionName = "0.9.60"' in build_gradle and "versionCode = 78" in build_gradle,
+        "expected versionName=0.9.60 and versionCode=78",
         "Keep every external-test APK versioned independently so testers never install an ambiguous build.",
     )
 
@@ -102,6 +102,22 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         and "api.moonshot.cn" not in all_app_sources,
         f"tokens={ai_boundary_tokens}; appHasKimiKey={'KIMI_API_KEY' in all_app_sources}",
         "Keep Kimi keys out of Android. The APK may only contain an AI gateway URL and must fallback locally when the gateway is absent or invalid.",
+    )
+
+    manifest = read_text(root / "app" / "src" / "main" / "AndroidManifest.xml")
+    network_security = read_text(root / "app" / "src" / "main" / "res" / "xml" / "network_security_config.xml")
+    local_ai_network_tokens = [
+        'android:networkSecurityConfig="@xml/network_security_config"',
+        '<base-config cleartextTrafficPermitted="false" />',
+        '<domain includeSubdomains="false">10.0.2.2</domain>',
+        '<domain includeSubdomains="false">127.0.0.1</domain>',
+        '<domain includeSubdomains="false">localhost</domain>',
+    ]
+    add(
+        "Local AI gateway network policy",
+        has_all(manifest + network_security, local_ai_network_tokens),
+        f"tokens={local_ai_network_tokens}",
+        "Allow cleartext only for local emulator QA hosts; production external-test gateways must remain HTTPS.",
     )
 
     ai_home_tokens = [

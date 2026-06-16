@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -110,13 +111,22 @@ fun HomeScreen(
     val strings = LocalTodayPlayStrings.current
     PaperBackground {
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            val wide = maxWidth >= 840.dp && maxWidth > maxHeight
-            val mediumPhone = !wide && maxWidth >= 600.dp
+            val landscape = maxWidth > maxHeight
+            val shortLandscape = landscape && maxHeight < 520.dp
+            val wide = maxWidth >= 840.dp && landscape
+            val mediumPhone = !wide && !shortLandscape && maxWidth >= 600.dp
             val compact = maxHeight < 760.dp
-            val pagePadding = if (maxWidth < 360.dp) 16.dp else 22.dp
+            val pagePadding = when {
+                maxWidth < 360.dp -> 16.dp
+                shortLandscape -> 14.dp
+                else -> 22.dp
+            }
+            val bottomNavCompact = shortLandscape || maxHeight < 680.dp
+            val useWideFeedColumns = maxWidth >= 1100.dp
             val heroHeight = when {
-                wide -> (maxHeight - pagePadding * 2).coerceAtMost(560.dp)
-                compact -> 220.dp
+                shortLandscape -> 132.dp
+                wide -> (maxHeight * 0.42f).coerceAtLeast(220.dp).coerceAtMost(340.dp)
+                compact -> 188.dp
                 else -> 280.dp
             }
             val relationOptions = homeRelationOptions(strings)
@@ -148,12 +158,13 @@ fun HomeScreen(
                         .statusBarsPadding()
                         .navigationBarsPadding()
                         .padding(pagePadding),
-                    horizontalArrangement = Arrangement.spacedBy(24.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    verticalAlignment = Alignment.Top,
                 ) {
                     Column(
                         modifier = Modifier
-                            .weight(1.25f)
+                            .weight(1.1f)
+                            .fillMaxHeight()
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
@@ -184,12 +195,13 @@ fun HomeScreen(
                             savedRouteKeys = savedSet,
                             onToggleSaved = toggleSaved,
                             onGenerate = onInstantGenerate,
-                            forceTwoColumns = true,
+                            forceTwoColumns = useWideFeedColumns,
                         )
                     }
                     Column(
                         modifier = Modifier
-                            .weight(0.75f)
+                            .weight(0.9f)
+                            .fillMaxHeight()
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
@@ -235,7 +247,7 @@ fun HomeScreen(
                             start = pagePadding,
                             top = pagePadding,
                             end = pagePadding,
-                            bottom = 22.dp,
+                            bottom = if (bottomNavCompact) 12.dp else 22.dp,
                         ),
                         verticalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 15.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -255,6 +267,7 @@ fun HomeScreen(
                                     .fillMaxWidth()
                                     .height(
                                         when {
+                                            shortLandscape -> heroHeight
                                             compact -> 188.dp
                                             mediumPhone -> 264.dp
                                             else -> 218.dp
@@ -329,7 +342,11 @@ fun HomeScreen(
                         onSettings = onPrivacy,
                         modifier = Modifier
                             .navigationBarsPadding()
-                            .padding(horizontal = pagePadding, vertical = 14.dp),
+                            .padding(
+                                horizontal = pagePadding,
+                                vertical = if (bottomNavCompact) 4.dp else 14.dp,
+                            ),
+                        compact = bottomNavCompact,
                     )
                 }
             }
@@ -476,6 +493,7 @@ private fun AiUnderstandingLine(label: String, value: String) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun HomeEmotionHeroCard(
     copy: DiscoveryHomeCopy,
@@ -495,12 +513,13 @@ private fun HomeEmotionHeroCard(
         animationSpec = infiniteRepeatable(tween(3200), RepeatMode.Reverse),
         label = "hero-route-drift",
     )
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .clip(RoundedCornerShape(26.dp))
             .background(WarmCream)
             .border(1.dp, RoseGold.copy(alpha = 0.36f), RoundedCornerShape(26.dp)),
     ) {
+        val compactHero = maxHeight < 170.dp
         Image(
             painter = painterResource(R.drawable.romantic_hero),
             contentDescription = null,
@@ -548,50 +567,73 @@ private fun HomeEmotionHeroCard(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(18.dp),
+                .padding(if (compactHero) 14.dp else 18.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(GalleryWhite.copy(alpha = 0.86f))
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
-            ) {
-                Text(copy.heroBadge, color = CherryPressed, style = MaterialTheme.typography.labelSmall)
+            if (!compactHero) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(GalleryWhite.copy(alpha = 0.86f))
+                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                ) {
+                    Text(copy.heroBadge, color = CherryPressed, style = MaterialTheme.typography.labelSmall)
+                }
+                Spacer(Modifier.height(8.dp))
             }
-            Spacer(Modifier.height(8.dp))
             Text(
                 copy.heroTitle,
                 color = InkBlack,
-                style = MaterialTheme.typography.headlineMedium,
-                maxLines = 1,
+                style = if (compactHero) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
+                maxLines = if (compactHero) 1 else 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 copy.heroSubtitle,
                 color = WarmGray,
                 style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
+                maxLines = if (compactHero) 1 else 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.height(if (compactHero) 6.dp else 12.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Box(
                     modifier = Modifier
+                        .heightIn(min = if (compactHero) 34.dp else 38.dp)
                         .clip(RoundedCornerShape(999.dp))
                         .background(CherryPressed)
                         .clickable { onPlanTonight() }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                        .padding(horizontal = 14.dp, vertical = if (compactHero) 6.dp else 8.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Text(copy.heroAction, color = GalleryWhite, style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        copy.heroAction,
+                        color = GalleryWhite,
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                    )
                 }
                 Box(
                     modifier = Modifier
+                        .heightIn(min = if (compactHero) 34.dp else 36.dp)
                         .clip(RoundedCornerShape(999.dp))
                         .background(GalleryWhite.copy(alpha = 0.74f))
                         .border(1.dp, LineBeige, RoundedCornerShape(999.dp))
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                        .padding(horizontal = 10.dp, vertical = if (compactHero) 6.dp else 8.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Text(copy.heroProof, color = WarmGray, style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        copy.heroProof,
+                        color = WarmGray,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                    )
                 }
             }
         }
@@ -676,7 +718,7 @@ private fun HomeContentChannelRail(
                 text = channel.label,
                 selected = selectedChannel == channel.key,
                 onClick = { onSelectedChannel(channel.key) },
-                modifier = Modifier.width(112.dp),
+                modifier = Modifier.widthIn(min = 104.dp, max = 140.dp),
             )
         }
     }
@@ -691,20 +733,21 @@ private fun ChannelPill(
 ) {
     Box(
         modifier = modifier
-            .height(42.dp)
+            .heightIn(min = 42.dp)
             .clip(RoundedCornerShape(999.dp))
             .background(if (selected) CherryPressed else GalleryWhite.copy(alpha = 0.76f))
             .border(1.dp, if (selected) CherryPressed else LineBeige, RoundedCornerShape(999.dp))
             .clickable { onClick() }
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 10.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text,
             color = if (selected) GalleryWhite else InkBlack,
             style = MaterialTheme.typography.labelLarge,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
         )
     }
 }
@@ -815,7 +858,7 @@ private fun RouteFeedCard(
                 item.title,
                 color = InkBlack,
                 style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
@@ -835,7 +878,7 @@ private fun RouteFeedCard(
             item.reason,
             color = WarmGray,
             style = MaterialTheme.typography.bodySmall,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         Spacer(Modifier.height(8.dp))
@@ -1067,20 +1110,21 @@ private fun FeedActionButton(
     val foreground = if (primary) GalleryWhite else InkBlack
     Box(
         modifier = Modifier
-            .height(34.dp)
+            .heightIn(min = 40.dp)
             .clip(RoundedCornerShape(999.dp))
             .background(background)
             .border(1.dp, if (primary) CherryPressed else LineBeige, RoundedCornerShape(999.dp))
             .clickable { onClick() }
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = text,
             color = foreground,
             style = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
         )
     }
 }
@@ -1114,12 +1158,22 @@ private fun HomeQuickPlanStrip(copy: DiscoveryHomeCopy, onPlanTonight: () -> Uni
         }
         Box(
             modifier = Modifier
+                .widthIn(min = 64.dp, max = 128.dp)
+                .heightIn(min = 42.dp)
                 .clip(RoundedCornerShape(999.dp))
                 .background(GalleryWhite)
                 .clickable { onPlanTonight() }
                 .padding(horizontal = 14.dp, vertical = 9.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            Text(copy.planAction, color = CherryPressed, style = MaterialTheme.typography.labelLarge)
+            Text(
+                copy.planAction,
+                color = CherryPressed,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }
@@ -1133,6 +1187,7 @@ private fun HomeBottomNavBar(
     onHistory: () -> Unit,
     onSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     Row(
         modifier = modifier
@@ -1140,15 +1195,18 @@ private fun HomeBottomNavBar(
             .clip(RoundedCornerShape(20.dp))
             .background(GalleryWhite.copy(alpha = 0.94f))
             .border(1.dp, LineBeige, RoundedCornerShape(20.dp))
-            .padding(horizontal = 6.dp, vertical = 6.dp),
+            .padding(
+                horizontal = if (compact) 4.dp else 6.dp,
+                vertical = if (compact) 4.dp else 6.dp,
+            ),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BottomNavItem(label = copy.bottomHome, icon = copy.bottomHomeIcon, selected = true, onClick = onHome, modifier = Modifier.weight(1f))
-        BottomNavItem(label = copy.bottomSaved, icon = copy.bottomSavedIcon, onClick = onSaved, modifier = Modifier.weight(1f))
-        BottomNavItem(label = copy.bottomPlan, icon = "+", primary = true, onClick = onPlan, modifier = Modifier.weight(1f))
-        BottomNavItem(label = copy.bottomHistory, icon = copy.bottomHistoryIcon, onClick = onHistory, modifier = Modifier.weight(1f))
-        BottomNavItem(label = copy.bottomSettings, icon = copy.bottomSettingsIcon, onClick = onSettings, modifier = Modifier.weight(1f))
+        BottomNavItem(label = copy.bottomHome, icon = copy.bottomHomeIcon, selected = true, onClick = onHome, compact = compact, modifier = Modifier.weight(1f))
+        BottomNavItem(label = copy.bottomSaved, icon = copy.bottomSavedIcon, onClick = onSaved, compact = compact, modifier = Modifier.weight(1f))
+        BottomNavItem(label = copy.bottomPlan, icon = "+", primary = true, onClick = onPlan, compact = compact, modifier = Modifier.weight(1f))
+        BottomNavItem(label = copy.bottomHistory, icon = copy.bottomHistoryIcon, onClick = onHistory, compact = compact, modifier = Modifier.weight(1f))
+        BottomNavItem(label = copy.bottomSettings, icon = copy.bottomSettingsIcon, onClick = onSettings, compact = compact, modifier = Modifier.weight(1f))
     }
 }
 
@@ -1160,10 +1218,11 @@ private fun BottomNavItem(
     modifier: Modifier = Modifier,
     selected: Boolean = false,
     primary: Boolean = false,
+    compact: Boolean = false,
 ) {
     Column(
         modifier = modifier
-            .heightIn(min = 50.dp)
+            .heightIn(min = if (compact) 36.dp else 50.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(
                 when {
@@ -1173,22 +1232,33 @@ private fun BottomNavItem(
                 },
             )
             .clickable { onClick() }
-            .padding(vertical = 5.dp),
+            .padding(horizontal = if (compact) 6.dp else 0.dp, vertical = if (compact) 2.dp else 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            icon,
-            color = if (primary) GalleryWhite else InkBlack,
-            style = MaterialTheme.typography.titleSmall,
-            maxLines = 1,
-        )
-        Text(
-            label,
-            color = if (primary) GalleryWhite else WarmGray,
-            style = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        if (compact) {
+            Text(
+                text = if (primary) "+ $label" else label,
+                color = if (primary) GalleryWhite else InkBlack,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
+        } else {
+            Text(
+                icon,
+                color = if (primary) GalleryWhite else InkBlack,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+            )
+            Text(
+                label,
+                color = if (primary) GalleryWhite else WarmGray,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
