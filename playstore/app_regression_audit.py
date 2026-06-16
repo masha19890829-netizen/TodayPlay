@@ -37,8 +37,10 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
     map_nav = read_text(app_root / "navigation" / "MapNavigator.kt")
     result_screen = read_text(app_root / "ui" / "screens" / "QuestResultScreen.kt")
     home_screen = read_text(app_root / "ui" / "screens" / "HomeScreen.kt")
+    saved_screen = read_text(app_root / "ui" / "screens" / "SavedRoutesScreen.kt")
     splash_screen = read_text(app_root / "ui" / "screens" / "SplashScreen.kt")
     loading_screen = read_text(app_root / "ui" / "screens" / "LoadingScreen.kt")
+    ai_generator = read_text(app_root / "generator" / "AiQuestGenerator.kt")
     home_route_content = read_text(app_root / "data" / "HomeRouteContentCatalog.kt")
     components = read_text(app_root / "ui" / "components" / "TodayPlayComponents.kt")
     theme_colors = read_text(app_root / "ui" / "theme" / "Color.kt")
@@ -61,6 +63,12 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
     locale_copy = read_text(app_root / "localization" / "TodayPlayLocale.kt")
     privacy_copy = read_text(app_root / "localization" / "PrivacyCopy.kt")
     build_gradle = read_text(root / "app" / "build.gradle.kts")
+    release_config_template = read_text(root / "release_config.template.properties")
+    ai_worker = read_text(root / "backend" / "ai-route-gateway" / "worker.js")
+    all_app_sources = "\n".join(
+        read_text(path)
+        for path in app_root.rglob("*.kt")
+    )
 
     checks: list[dict[str, str]] = []
 
@@ -73,10 +81,75 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         })
 
     add(
-        "V0.9.58 external-test version metadata",
-        'versionName = "0.9.58"' in build_gradle and "versionCode = 76" in build_gradle,
-        "expected versionName=0.9.58 and versionCode=76",
+        "V0.9.59 AI external-test version metadata",
+        'versionName = "0.9.59"' in build_gradle and "versionCode = 77" in build_gradle,
+        "expected versionName=0.9.59 and versionCode=77",
         "Keep every external-test APK versioned independently so testers never install an ambiguous build.",
+    )
+
+    ai_boundary_tokens = [
+        "AI_ROUTE_GATEWAY_URL",
+        "AiQuestGenerator(BuildConfig.AI_ROUTE_GATEWAY_URL)",
+        "normalizedGatewayEndpoint",
+        "requestGateway",
+        "usedFallback",
+        "Local fallback route",
+    ]
+    add(
+        "AI route gateway client boundary",
+        has_all(build_gradle + main_activity + ai_generator + release_config_template, ai_boundary_tokens)
+        and "KIMI_API_KEY" not in all_app_sources
+        and "api.moonshot.cn" not in all_app_sources,
+        f"tokens={ai_boundary_tokens}; appHasKimiKey={'KIMI_API_KEY' in all_app_sources}",
+        "Keep Kimi keys out of Android. The APK may only contain an AI gateway URL and must fallback locally when the gateway is absent or invalid.",
+    )
+
+    ai_home_tokens = [
+        "AiIntentComposer",
+        "说一句今天想怎么玩",
+        "看看我理解得对不对",
+        "我理解的是",
+        "就按这个生成",
+        "buildAiIntentInput",
+        "inferCityFromText",
+    ]
+    add(
+        "AI one-sentence home path",
+        has_all(home_screen, ai_home_tokens),
+        f"tokens={ai_home_tokens}",
+        "Keep the home AI entry short: one-sentence input, chips, understanding confirmation, then generation.",
+    )
+
+    saved_route_tokens = [
+        "SavedRoutesScreen",
+        "AppScreen.Saved",
+        "onSaved = { screen = AppScreen.Saved }",
+        "收藏的路线",
+        "records = viewModel.history",
+        "onReplay",
+    ]
+    add(
+        "Saved route tab opens route list",
+        has_all(main_activity + home_screen + saved_screen, saved_route_tokens)
+        and "onSaved = onQuickStart" not in home_screen,
+        f"tokens={saved_route_tokens}; oldQuickStartSaved={'onSaved = onQuickStart' in home_screen}",
+        "Keep the bottom Saved tab wired to a real local route list, not the old quick-start inspiration templates.",
+    )
+
+    ai_worker_tokens = [
+        "/ai/route/generate",
+        "KIMI_API_KEY",
+        "candidateStops",
+        "selectedStopIds",
+        "candidate_city_mismatch",
+        "selected_city_mismatch",
+        "usedFallback",
+    ]
+    add(
+        "AI gateway validates candidate stops",
+        has_all(ai_worker, ai_worker_tokens),
+        f"tokens={ai_worker_tokens}",
+        "Keep server-side AI constrained to provided same-city candidate stops and fallback on invalid model output.",
     )
 
     clean_generation_tokens = [

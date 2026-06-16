@@ -1,5 +1,6 @@
 package com.todayplay.app.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -32,14 +33,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -81,6 +86,7 @@ import com.todayplay.app.ui.theme.LineBeige
 import com.todayplay.app.ui.theme.RoseGold
 import com.todayplay.app.ui.theme.WarmCream
 import com.todayplay.app.ui.theme.WarmGray
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -88,6 +94,7 @@ fun HomeScreen(
     selectedLocale: TodayPlayLocale,
     onStart: () -> Unit,
     onQuickStart: () -> Unit,
+    onSaved: () -> Unit,
     onHistory: () -> Unit,
     onPrivacy: () -> Unit,
     onShop: () -> Unit,
@@ -155,6 +162,11 @@ fun HomeScreen(
                             copy = discoveryCopy,
                             onPrivacy = onPrivacy,
                         )
+                        AiIntentComposer(
+                            copy = discoveryCopy,
+                            relations = relationOptions,
+                            onGenerate = onInstantGenerate,
+                        )
                         HomeContentChannelRail(
                             locale = selectedLocale,
                             selectedChannel = selectedChannel,
@@ -196,6 +208,7 @@ fun HomeScreen(
                             onSelectedRelation = { selectedRelation = it },
                             onStart = onStart,
                             onQuickStart = onQuickStart,
+                            onSaved = onSaved,
                             onHistory = onHistory,
                             onPrivacy = onPrivacy,
                             onShop = onShop,
@@ -250,6 +263,13 @@ fun HomeScreen(
                             )
                         }
                         item {
+                            AiIntentComposer(
+                                copy = discoveryCopy,
+                                relations = relationOptions,
+                                onGenerate = onInstantGenerate,
+                            )
+                        }
+                        item {
                             HomeContentChannelRail(
                                 locale = selectedLocale,
                                 selectedChannel = selectedChannel,
@@ -285,6 +305,7 @@ fun HomeScreen(
                                 onSelectedRelation = { selectedRelation = it },
                                 onStart = onStart,
                                 onQuickStart = onQuickStart,
+                                onSaved = onSaved,
                                 onHistory = onHistory,
                                 onPrivacy = onPrivacy,
                                 onShop = onShop,
@@ -302,7 +323,7 @@ fun HomeScreen(
                     HomeBottomNavBar(
                         copy = discoveryCopy,
                         onHome = {},
-                        onSaved = onQuickStart,
+                        onSaved = onSaved,
                         onPlan = onStart,
                         onHistory = onHistory,
                         onSettings = onPrivacy,
@@ -313,6 +334,145 @@ fun HomeScreen(
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
+@Composable
+private fun AiIntentComposer(
+    copy: DiscoveryHomeCopy,
+    relations: List<HomeRelationOption>,
+    onGenerate: (QuestInput) -> Unit,
+) {
+    var freeText by rememberSaveable { mutableStateOf("") }
+    var selectedRelationKey by rememberSaveable { mutableStateOf(relations.firstOrNull()?.key.orEmpty()) }
+    var selectedChipKeys by rememberSaveable { mutableStateOf("low-pressure|chat") }
+    var pendingInput by remember { mutableStateOf<QuestInput?>(null) }
+    val selectedChips = selectedChipKeys.split("|").filter { it.isNotBlank() }.toSet()
+    val relation = relations.firstOrNull { it.key == selectedRelationKey } ?: relations.first()
+    val quickChips = aiIntentChips()
+    val confirmationRequester = remember { BringIntoViewRequester() }
+    val draftInput = buildAiIntentInput(
+        base = relation.input,
+        freeText = freeText,
+        selectedChips = quickChips.filter { it.key in selectedChips },
+    )
+
+    LaunchedEffect(pendingInput) {
+        if (pendingInput != null) {
+            delay(90)
+            confirmationRequester.bringIntoView()
+        }
+    }
+
+    TicketCard {
+        Text(
+            "说一句今天想怎么玩",
+            color = InkBlack,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "比如：上海，下班后，想轻松聊聊，预算100内。",
+            color = WarmGray,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(
+            value = freeText,
+            onValueChange = {
+                freeText = it.take(160)
+                pendingInput = null
+            },
+            placeholder = { Text("我在上海，和刚认识的人，下班后不想太累") },
+            modifier = Modifier.fillMaxWidth(),
+            maxLines = 3,
+            shape = RoundedCornerShape(18.dp),
+            textStyle = MaterialTheme.typography.bodyMedium,
+        )
+        Spacer(Modifier.height(10.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            relations.take(4).forEach { option ->
+                KawaiiChip(
+                    text = option.label,
+                    selected = option.key == relation.key,
+                    onClick = {
+                        selectedRelationKey = option.key
+                        pendingInput = null
+                    },
+                )
+            }
+            quickChips.forEach { chip ->
+                KawaiiChip(
+                    text = chip.label,
+                    selected = chip.key in selectedChips,
+                    onClick = {
+                        val next = if (chip.key in selectedChips) selectedChips - chip.key else selectedChips + chip.key
+                        selectedChipKeys = next.joinToString("|")
+                        pendingInput = null
+                    },
+                )
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        HeartPrimaryButton(
+            text = "看看我理解得对不对",
+            onClick = { pendingInput = draftInput },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        pendingInput?.let { input ->
+            Spacer(Modifier.height(12.dp))
+            AiUnderstandingCard(
+                input = input,
+                onConfirm = { onGenerate(input) },
+                onEdit = { pendingInput = null },
+                modifier = Modifier.bringIntoViewRequester(confirmationRequester),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AiUnderstandingCard(
+    input: QuestInput,
+    onConfirm: () -> Unit,
+    onEdit: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(RoseGold.copy(alpha = 0.13f))
+            .border(1.dp, RoseGold.copy(alpha = 0.3f), RoundedCornerShape(18.dp))
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text("我理解的是", color = CherryPressed, style = MaterialTheme.typography.titleSmall)
+        AiUnderstandingLine("城市", input.city ?: "同城路线")
+        AiUnderstandingLine("关系", input.relationship)
+        AiUnderstandingLine("时间", input.time)
+        AiUnderstandingLine("预算", input.budget)
+        AiUnderstandingLine("倾向", input.moods.take(3).joinToString(" / "))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            GhostButton(text = "改一句", onClick = onEdit, modifier = Modifier.weight(1f))
+            HeartPrimaryButton(text = "就按这个生成", onClick = onConfirm, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun AiUnderstandingLine(label: String, value: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = WarmGray, style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(42.dp))
+        Text(value, color = InkBlack, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -1066,6 +1226,7 @@ private fun HomeEntryPanel(
     onSelectedRelation: (String) -> Unit,
     onStart: () -> Unit,
     onQuickStart: () -> Unit,
+    onSaved: () -> Unit,
     onHistory: () -> Unit,
     onPrivacy: () -> Unit,
     onShop: () -> Unit,
@@ -1454,6 +1615,83 @@ private data class HomeContentChannel(
     val key: String,
     val label: String,
 )
+
+private data class AiIntentChip(
+    val key: String,
+    val label: String,
+    val mood: String,
+)
+
+private fun aiIntentChips() = listOf(
+    AiIntentChip("low-pressure", "低压力", "不想走太远"),
+    AiIntentChip("chat", "想聊天", "想轻松聊天"),
+    AiIntentChip("tired", "有点累", "有点累"),
+    AiIntentChip("photo", "想拍照", "想拍好看的照片"),
+    AiIntentChip("budget", "100内", "不想花太多钱"),
+)
+
+private fun buildAiIntentInput(
+    base: QuestInput,
+    freeText: String,
+    selectedChips: List<AiIntentChip>,
+): QuestInput {
+    val text = freeText.trim()
+    val inferredMoods = inferMoodsFromText(text)
+    val chipMoods = selectedChips.map { it.mood }
+    val note = text.ifBlank {
+        "首页 AI 快捷输入：${selectedChips.joinToString(" / ") { it.label }}。"
+    }
+    return base.copy(
+        city = inferCityFromText(text, base.city),
+        moods = (chipMoods + inferredMoods + base.moods.take(1)).distinct().take(5),
+        time = inferTimeFromText(text, base.time),
+        budget = inferBudgetFromText(text, base.budget),
+        vibe = inferVibeFromText(text, base.vibe),
+        note = note,
+    )
+}
+
+private fun inferCityFromText(text: String, fallback: String?): String? {
+    val knownCities = listOf("上海", "广州", "杭州", "深圳", "北京", "成都", "南京", "重庆", "苏州", "厦门", "西安")
+    return knownCities.firstOrNull { city -> text.contains(city) } ?: fallback
+}
+
+private fun inferTimeFromText(text: String, fallback: String): String {
+    return when {
+        text.contains("半天") -> "半天"
+        text.contains("30") -> "30 分钟"
+        text.contains("90") -> "90 分钟"
+        text.contains("两小时") || text.contains("2小时") || text.contains("2 小时") -> "2 小时"
+        text.contains("下班") || text.contains("晚上") -> "90 分钟"
+        else -> fallback
+    }
+}
+
+private fun inferBudgetFromText(text: String, fallback: String): String {
+    val number = Regex("(\\d{1,4})\\s*(元|块|rmb|RMB)?").find(text)?.groupValues?.getOrNull(1)
+    return when {
+        text.contains("免费") || text.contains("花钱少") -> "50 元以内"
+        number != null && (text.contains("预算") || text.contains("钱") || text.contains("内")) -> "$number 元以内"
+        else -> fallback
+    }
+}
+
+private fun inferMoodsFromText(text: String): List<String> = buildList {
+    if (text.contains("累") || text.contains("不想太累")) add("有点累")
+    if (text.contains("聊")) add("想轻松聊天")
+    if (text.contains("拍")) add("想拍好看的照片")
+    if (text.contains("安静") || text.contains("慢慢")) add("安静一点")
+    if (text.contains("不想走") || text.contains("少走")) add("不想走太远")
+}
+
+private fun inferVibeFromText(text: String, fallback: String): String {
+    return when {
+        text.contains("安静") || text.contains("慢慢") || text.contains("累") -> "治愈的"
+        text.contains("朋友") || text.contains("组局") -> "轻松的"
+        text.contains("拍") || text.contains("电影") -> "电影感"
+        else -> fallback
+    }
+}
 
 private fun homeRelationOptions(strings: TodayPlayStrings) = listOf(
     relationOption(

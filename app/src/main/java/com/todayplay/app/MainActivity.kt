@@ -27,7 +27,7 @@ import com.todayplay.app.auth.GoogleAccountGateway
 import com.todayplay.app.billing.PlayBillingGateway
 import com.todayplay.app.data.QuestHistoryStore
 import com.todayplay.app.data.QuestRepository
-import com.todayplay.app.generator.LocalQuestGenerator
+import com.todayplay.app.generator.AiQuestGenerator
 import com.todayplay.app.localization.LocalTodayPlayLocale
 import com.todayplay.app.localization.LocalTodayPlayStrings
 import com.todayplay.app.localization.TodayPlayLocale
@@ -43,6 +43,7 @@ import com.todayplay.app.ui.screens.LoadingScreen
 import com.todayplay.app.ui.screens.PrivacyScreen
 import com.todayplay.app.ui.screens.QuickStartScreen
 import com.todayplay.app.ui.screens.QuestResultScreen
+import com.todayplay.app.ui.screens.SavedRoutesScreen
 import com.todayplay.app.ui.screens.ShareCardScreen
 import com.todayplay.app.ui.screens.ShopScreen
 import com.todayplay.app.ui.screens.SplashScreen
@@ -64,6 +65,7 @@ private enum class AppScreen {
     Splash,
     Home,
     QuickStart,
+    Saved,
     Create,
     Loading,
     Result,
@@ -90,7 +92,7 @@ private fun TodayPlayApp() {
             TodayPlayViewModel.Factory(
                 QuestRepository(
                     store = QuestHistoryStore(context),
-                    generator = LocalQuestGenerator(),
+                    generator = AiQuestGenerator(BuildConfig.AI_ROUTE_GATEWAY_URL),
                 ),
             )
         },
@@ -142,6 +144,7 @@ private fun TodayPlayApp() {
     BackHandler(enabled = screen != AppScreen.Home && screen != AppScreen.Splash) {
         when (screen) {
             AppScreen.QuickStart,
+            AppScreen.Saved,
             AppScreen.Create,
             AppScreen.History,
             AppScreen.Privacy,
@@ -175,6 +178,7 @@ private fun TodayPlayApp() {
             selectedLocale = selectedLocale,
             onStart = { screen = AppScreen.Create },
             onQuickStart = { screen = AppScreen.QuickStart },
+            onSaved = { screen = AppScreen.Saved },
             onHistory = { screen = AppScreen.History },
             onPrivacy = { screen = AppScreen.Privacy },
             onShop = { screen = AppScreen.Shop },
@@ -190,6 +194,18 @@ private fun TodayPlayApp() {
         AppScreen.QuickStart -> QuickStartScreen(
             onBack = { screen = AppScreen.Home },
             onGenerate = { input -> startGeneration(input, "quick_start") },
+        )
+        AppScreen.Saved -> SavedRoutesScreen(
+            records = viewModel.history,
+            onBack = { screen = AppScreen.Home },
+            onOpen = { record ->
+                viewModel.openRecord(record)
+                screen = AppScreen.Result
+            },
+            onReplay = { record ->
+                startGeneration(record.toReplayInput(selectedLocale.code), "saved_replay")
+            },
+            onStart = { screen = AppScreen.Home },
         )
         AppScreen.Create -> CreateQuestScreen(
             onBack = { screen = AppScreen.Home },

@@ -35,14 +35,15 @@ android {
         applicationId = "com.todayplay.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 76
-        versionName = "0.9.58"
+        versionCode = 77
+        versionName = "0.9.59"
         buildConfigField("String", "BILLING_VERIFY_ENDPOINT", buildConfigString(releaseConfigValue("BILLING_VERIFY_ENDPOINT")))
         buildConfigField("String", "TRAVEL_CONTENT_BASE_URL", buildConfigString(releaseConfigValue("TRAVEL_CONTENT_BASE_URL")))
         buildConfigField("String", "PRIVACY_POLICY_URL", buildConfigString(releaseConfigValue("PRIVACY_POLICY_URL")))
         buildConfigField("String", "SUPPORT_EMAIL", buildConfigString(releaseConfigValue("SUPPORT_EMAIL")))
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", buildConfigString(releaseConfigValue("GOOGLE_WEB_CLIENT_ID")))
         buildConfigField("String", "AUTH_VERIFY_ENDPOINT", buildConfigString(releaseConfigValue("AUTH_VERIFY_ENDPOINT")))
+        buildConfigField("String", "AI_ROUTE_GATEWAY_URL", buildConfigString(releaseConfigValue("AI_ROUTE_GATEWAY_URL")))
 
         vectorDrawables {
             useSupportLibrary = true

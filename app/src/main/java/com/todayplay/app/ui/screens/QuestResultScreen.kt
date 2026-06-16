@@ -146,6 +146,11 @@ fun QuestResultScreen(
                 if (itineraryPlan != null) {
                     item {
                         FadeItem(visibleCount >= 1) {
+                            PersonalFitCard(record = record, locale = locale)
+                        }
+                    }
+                    item {
+                        FadeItem(visibleCount >= 2) {
                             RouteVisualPreviewCard(
                                 record = record,
                                 locale = locale,
@@ -154,7 +159,7 @@ fun QuestResultScreen(
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 2) {
+                        FadeItem(visibleCount >= 3) {
                             RouteExecutionCard(
                                 record = record,
                                 locale = locale,
@@ -171,23 +176,23 @@ fun QuestResultScreen(
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 3) {
+                        FadeItem(visibleCount >= 4) {
                             MissionSummaryCard(quest = quest, progress = progress, completed = resolvedSteps, total = totalSteps, copy = copy)
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 4) {
+                        FadeItem(visibleCount >= 5) {
                             ItineraryOverviewCard(record, copy)
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 5) {
+                        FadeItem(visibleCount >= 6) {
                             RoutePlaybookCard(record, locale)
                         }
                     }
                     itineraryPlan.stops.forEach { stop ->
                         item {
-                            FadeItem(visibleCount >= 6) {
+                            FadeItem(visibleCount >= 7) {
                                 RouteStopCard(
                                     stop = stop,
                                     status = progressState.statusFor(stop.checkInTask.taskId),
@@ -315,6 +320,76 @@ private fun FadeItem(visible: Boolean, content: @Composable () -> Unit) {
         enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 }),
     ) {
         content()
+    }
+}
+
+@Composable
+private fun PersonalFitCard(record: QuestRecord, locale: TodayPlayLocale) {
+    val plan = record.quest.itineraryPlan ?: return
+    val title = when (locale) {
+        TodayPlayLocale.SimplifiedChinese,
+        TodayPlayLocale.TraditionalChinese -> "为什么适合你"
+        else -> "Why it fits"
+    }
+    val english = when (locale) {
+        TodayPlayLocale.SimplifiedChinese,
+        TodayPlayLocale.TraditionalChinese -> "personal fit"
+        else -> "personal fit"
+    }
+    val reasons = buildList {
+        add(plan.routeSummary)
+        plan.stops.take(2).forEach { stop -> add(stop.whyForGroup) }
+        add(record.quest.completionSummary)
+    }.map { it.trim() }.filter { it.isNotBlank() }.distinct().take(3)
+
+    SoftCard {
+        SectionHeader("FIT", title, english)
+        Spacer(Modifier.height(10.dp))
+        reasons.forEach { reason ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Text("•", color = CherryPressed, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    reason,
+                    color = WarmGray,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+        }
+        Text(
+            aiCoverageNote(locale, record.quest.tags.any { it.contains("AI") }),
+            color = CherryPressed,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+private fun aiCoverageNote(locale: TodayPlayLocale, aiAssisted: Boolean): String {
+    return when (locale) {
+        TodayPlayLocale.SimplifiedChinese -> if (aiAssisted) {
+            "AI 已按你的输入改写路线文案；POI 数据仍为本地样例。"
+        } else {
+            "当前为本地兜底路线；POI 数据仍为本地样例。"
+        }
+        TodayPlayLocale.TraditionalChinese -> if (aiAssisted) {
+            "AI 已依你的輸入改寫路線文案；POI 資料仍為本地樣例。"
+        } else {
+            "目前為本地備援路線；POI 資料仍為本地樣例。"
+        }
+        else -> if (aiAssisted) {
+            "AI route text is based on your input; POI data remains a local sample."
+        } else {
+            "Local fallback route; POI data remains a local sample."
+        }
     }
 }
 
