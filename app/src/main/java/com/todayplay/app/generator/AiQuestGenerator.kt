@@ -12,14 +12,18 @@ class AiQuestGenerator(
     private val gatewayUrl: String,
     private val fallback: LocalQuestGenerator = LocalQuestGenerator(),
 ) : QuestGenerator {
+    private val itineraryGenerator = LocalItineraryGenerator()
+
     override fun generate(input: QuestInput): Quest {
         val localQuest = fallback.generate(input)
         val endpoint = gatewayUrl.normalizedGatewayEndpoint() ?: return localQuest.withFallbackTag()
         val plan = localQuest.itineraryPlan ?: return localQuest.withFallbackTag()
-        val stops = plan.stops
-        if (stops.isEmpty()) return localQuest.withFallbackTag()
+        val candidateStops = runCatching {
+            itineraryGenerator.generateDraft(input, localQuest.questId).candidateStops
+        }.getOrElse { plan.stops }.ifEmpty { plan.stops }
+        if (candidateStops.isEmpty()) return localQuest.withFallbackTag()
 
-        val payload = buildPayload(input, stops)
+        val payload = buildPayload(input, candidateStops)
         val response = runCatching { requestGateway(endpoint, payload) }.getOrElse {
             return localQuest.withFallbackTag("android_gateway_request_failed")
         }
@@ -28,33 +32,36 @@ class AiQuestGenerator(
         }
 
         val selectedStopIds = response.optJSONArray("selectedStopIds").toStringList()
-            .filter { id -> stops.any { stop -> stop.stopId == id } }
+            .filter { id -> candidateStops.any { stop -> stop.stopId == id } }
             .take(4)
         if (selectedStopIds.isEmpty()) return localQuest.withFallbackTag()
 
         val stopReasons = response.optJSONObject("stopReasons") ?: JSONObject()
         val reorderedStops = selectedStopIds.mapNotNull { id ->
-            stops.firstOrNull { stop -> stop.stopId == id }
-        }.ifEmpty { stops }
-        val updatedStops = reorderedStops.map { stop ->
+            candidateStops.firstOrNull { stop -> stop.stopId == id }
+        }.ifEmpty { plan.stops }
+        val updatedStops = reorderedStops.mapIndexed { index, stop ->
             val aiReason = stopReasons.optString(stop.stopId).trim()
-            if (aiReason.isNotBlank()) stop.copy(whyForGroup = aiReason.take(140)) else stop
+            val orderedStop = stop.copy(order = index + 1)
+            if (aiReason.isNotBlank()) orderedStop.copy(whyForGroup = aiReason.take(140)) else orderedStop
         }
         val aiTitle = response.optString("title").trim().takeIf { it.isNotBlank() }?.take(42)
         val aiStory = response.optString("storySetup").trim().takeIf { it.isNotBlank() }?.take(180)
         val aiSummary = response.optString("routeSummary").trim().takeIf { it.isNotBlank() }?.take(180)
+        val intentTitle = input.intentMarker("TP_INTENT_TITLE")
+        val intentSummary = input.intentMarker("TP_INTENT_SUMMARY")
         val whyReasons = response.optJSONArray("whyReasons").toStringList().map { it.take(80) }.take(3)
         val updatedPlan = plan.copy(
-            title = aiTitle ?: plan.title,
+            title = intentTitle ?: aiTitle ?: plan.title,
             stops = updatedStops,
-            routeSummary = aiSummary ?: plan.routeSummary,
-            candidateRouteCount = stops.size,
-            marketCoverageNote = "AI assisted from local candidate stops. POI data is still a local sample and needs official verification before launch.",
+            routeSummary = intentSummary ?: aiSummary ?: plan.routeSummary,
+            candidateRouteCount = candidateStops.size,
+            marketCoverageNote = "AI selected from a same-city candidate pool. POI data is still a local sample and needs official verification before launch.",
         )
 
         return localQuest.copy(
-            title = aiTitle ?: localQuest.title,
-            storySetup = aiStory ?: localQuest.storySetup,
+            title = intentTitle ?: aiTitle ?: localQuest.title,
+            storySetup = intentSummary ?: aiStory ?: localQuest.storySetup,
             tags = (listOf("AI个性化", "同城校验") + localQuest.tags).distinct().take(6),
             completionSummary = whyReasons.joinToString(" / ").ifBlank { localQuest.completionSummary },
             itineraryPlan = updatedPlan,

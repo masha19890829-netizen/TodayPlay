@@ -71,6 +71,9 @@ import com.todayplay.app.localization.LocalizedHomeRelation
 import com.todayplay.app.localization.TodayPlayLocale
 import com.todayplay.app.localization.TodayPlayStrings
 import com.todayplay.app.localization.privacyStrings
+import com.todayplay.app.generator.CandidateRouteCard
+import com.todayplay.app.generator.RouteIntent
+import com.todayplay.app.generator.RouteIntentInterpreter
 import com.todayplay.app.model.AccountSession
 import com.todayplay.app.model.QuestInput
 import com.todayplay.app.ui.components.GhostButton
@@ -80,7 +83,9 @@ import com.todayplay.app.ui.components.PaperBackground
 import com.todayplay.app.ui.components.SectionHeader
 import com.todayplay.app.ui.components.SoftCard
 import com.todayplay.app.ui.components.TicketCard
+import com.todayplay.app.ui.theme.BlackCherry
 import com.todayplay.app.ui.theme.CherryPressed
+import com.todayplay.app.ui.theme.DustPink
 import com.todayplay.app.ui.theme.GalleryWhite
 import com.todayplay.app.ui.theme.InkBlack
 import com.todayplay.app.ui.theme.LineBeige
@@ -108,6 +113,15 @@ fun HomeScreen(
     onLocalTesterSignIn: () -> Unit,
     onSignOut: () -> Unit,
 ) {
+    ChatFirstHomeExperience(
+        locale = selectedLocale,
+        onHistory = onHistory,
+        onSettings = onPrivacy,
+        onSaved = onSaved,
+        onGenerate = onInstantGenerate,
+    )
+    return
+
     val strings = LocalTodayPlayStrings.current
     PaperBackground {
         BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -351,6 +365,438 @@ fun HomeScreen(
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ChatFirstHomeExperience(
+    locale: TodayPlayLocale,
+    onHistory: () -> Unit,
+    onSettings: () -> Unit,
+    onSaved: () -> Unit,
+    onGenerate: (QuestInput) -> Unit,
+) {
+    var rawText by rememberSaveable { mutableStateOf("") }
+    var selectedCity by rememberSaveable { mutableStateOf("上海") }
+    var selectedChipKeys by rememberSaveable { mutableStateOf("friends|2h|less-walk") }
+    var intent by remember { mutableStateOf<RouteIntent?>(null) }
+    var cards by remember { mutableStateOf<List<CandidateRouteCard>>(emptyList()) }
+    val selectedChips = selectedChipKeys.split("|").filter { it.isNotBlank() }.toSet()
+    val quickChips = chatFirstChips()
+
+    fun toggleChip(key: String) {
+        selectedChipKeys = if (key in selectedChips) {
+            (selectedChips - key).joinToString("|")
+        } else {
+            (selectedChips + key).joinToString("|")
+        }
+    }
+
+    fun generateCards() {
+        val prompt = rawText.ifBlank { "我在$selectedCity，今晚想轻松安排，不想太累" }
+        val nextIntent = RouteIntentInterpreter.interpret(
+            rawText = prompt,
+            selectedChips = selectedChips,
+            selectedCity = selectedCity,
+            localeCode = locale.code,
+        )
+        intent = nextIntent
+        cards = RouteIntentInterpreter.buildCandidateCards(nextIntent).take(6)
+    }
+
+    PaperBackground {
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val wide = maxWidth >= 760.dp && maxWidth > maxHeight
+            val compact = maxHeight < 700.dp
+            val pagePadding = if (maxWidth < 360.dp) 16.dp else 22.dp
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding(),
+                contentPadding = PaddingValues(
+                    start = pagePadding,
+                    end = pagePadding,
+                    top = if (compact) 14.dp else 22.dp,
+                    bottom = 24.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                item {
+                    ChatFirstTopBar(
+                        onHistory = onHistory,
+                        onSettings = onSettings,
+                        onSaved = onSaved,
+                    )
+                }
+                item {
+                    ChatFirstComposer(
+                        rawText = rawText,
+                        onRawTextChange = {
+                            rawText = it.take(180)
+                            cards = emptyList()
+                            intent = null
+                        },
+                        selectedCity = selectedCity,
+                        onCitySelected = {
+                            selectedCity = it
+                            cards = emptyList()
+                            intent = null
+                        },
+                        quickChips = quickChips,
+                        selectedChips = selectedChips,
+                        onToggleChip = {
+                            toggleChip(it)
+                            cards = emptyList()
+                            intent = null
+                        },
+                        onGenerateCards = ::generateCards,
+                    )
+                }
+                if (intent != null && cards.isNotEmpty()) {
+                    item {
+                        IntentSummaryCard(intent = intent!!)
+                    }
+                    item {
+                        Text(
+                            text = "为你生成了 ${cards.size} 种今天的过法",
+                            color = InkBlack,
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .widthIn(max = if (wide) 860.dp else 640.dp),
+                        )
+                    }
+                    item {
+                        CandidateCardGrid(
+                            cards = cards,
+                            wide = wide,
+                            onSelect = { card -> onGenerate(card.input) },
+                        )
+                    }
+                    item {
+                        ChatRefineBar(
+                            onRefine = { chip ->
+                                val nextText = listOf(rawText.ifBlank { intent?.rawText.orEmpty() }, chip)
+                                    .filter { it.isNotBlank() }
+                                    .joinToString("，")
+                                val nextChips = selectedChips + chip.refineKey()
+                                val nextIntent = RouteIntentInterpreter.interpret(
+                                    rawText = nextText,
+                                    selectedChips = nextChips,
+                                    selectedCity = selectedCity,
+                                    localeCode = locale.code,
+                                )
+                                rawText = nextText
+                                selectedChipKeys = nextChips.joinToString("|")
+                                intent = nextIntent
+                                cards = RouteIntentInterpreter.buildCandidateCards(nextIntent).take(6)
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatFirstTopBar(
+    onHistory: () -> Unit,
+    onSettings: () -> Unit,
+    onSaved: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = 860.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "TodayPlay",
+                color = InkBlack,
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = "用一句话安排今天",
+                color = WarmGray,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        KawaiiChip(text = "历史", selected = false, onClick = onHistory)
+        KawaiiChip(text = "收藏", selected = false, onClick = onSaved)
+        KawaiiChip(text = "设置", selected = false, onClick = onSettings)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ChatFirstComposer(
+    rawText: String,
+    onRawTextChange: (String) -> Unit,
+    selectedCity: String,
+    onCitySelected: (String) -> Unit,
+    quickChips: List<ChatQuickChip>,
+    selectedChips: Set<String>,
+    onToggleChip: (String) -> Unit,
+    onGenerateCards: () -> Unit,
+) {
+    SoftCard(padding = 18.dp) {
+        Text(
+            text = "今天想怎么玩？",
+            color = InkBlack,
+            style = MaterialTheme.typography.headlineMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = "说一句需求，我会先理解你的城市、关系、预算和体力，再给几种可选玩法。",
+            color = WarmGray,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(14.dp))
+        OutlinedTextField(
+            value = rawText,
+            onValueChange = onRawTextChange,
+            placeholder = {
+                Text(
+                    "比如：今晚两个人，预算100内，别太累，适合聊天",
+                    color = WarmGray,
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 3,
+            maxLines = 4,
+            shape = RoundedCornerShape(20.dp),
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = InkBlack),
+        )
+        Spacer(Modifier.height(12.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            listOf("上海", "深圳", "广州", "杭州").forEach { city ->
+                KawaiiChip(
+                    text = city,
+                    selected = city == selectedCity,
+                    onClick = { onCitySelected(city) },
+                )
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            quickChips.forEach { chip ->
+                KawaiiChip(
+                    text = chip.label,
+                    selected = chip.key in selectedChips,
+                    onClick = { onToggleChip(chip.key) },
+                )
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        HeartPrimaryButton(
+            text = "生成今天的玩法",
+            onClick = onGenerateCards,
+        )
+    }
+}
+
+@Composable
+private fun IntentSummaryCard(intent: RouteIntent) {
+    TicketCard {
+        Text("我理解的是", color = CherryPressed, style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "${intent.city} / ${intent.relationship} / ${intent.timeBudget} / ${intent.moneyBudget}",
+            color = InkBlack,
+            style = MaterialTheme.typography.titleSmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = "${intent.primaryGoal}，${intent.mobility}，${intent.indoorPreference}",
+            color = WarmGray,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CandidateCardGrid(
+    cards: List<CandidateRouteCard>,
+    wide: Boolean,
+    onSelect: (CandidateRouteCard) -> Unit,
+) {
+    FlowRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = if (wide) 860.dp else 640.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        cards.forEach { card ->
+            CandidateRouteCardView(
+                card = card,
+                modifier = if (wide) Modifier.weight(1f).widthIn(min = 280.dp) else Modifier.fillMaxWidth(),
+                onSelect = { onSelect(card) },
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CandidateRouteCardView(
+    card: CandidateRouteCard,
+    modifier: Modifier = Modifier,
+    onSelect: () -> Unit,
+) {
+    TicketCard(modifier = modifier.clickable { onSelect() }) {
+        Text(
+            text = card.title,
+            color = InkBlack,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = card.subtitle,
+            color = WarmGray,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(10.dp))
+        RouteCardMiniVisual(card.strategy)
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = card.stopPreview.joinToString("  /  "),
+            color = InkBlack,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = card.whyThisFits,
+            color = WarmGray,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(10.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            listOf(card.estimatedDuration, card.budgetLabel, card.mobilityLabel).forEach { label ->
+                KawaiiChip(text = label, selected = false, onClick = {})
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        HeartPrimaryButton(text = "选这条生成路线", onClick = onSelect)
+    }
+}
+
+@Composable
+private fun RouteCardMiniVisual(strategy: String) {
+    val color = when (strategy) {
+        "quiet" -> RoseGold
+        "lively" -> CherryPressed
+        "budget" -> WarmGray
+        "short" -> DustPink
+        "surprise" -> BlackCherry
+        else -> InkBlack
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(42.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(GalleryWhite.copy(alpha = 0.62f))
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        repeat(3) { index ->
+            Box(
+                modifier = Modifier
+                    .size(if (index == 1) 14.dp else 10.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(color.copy(alpha = 0.78f)),
+            )
+            if (index < 2) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(1.dp)
+                        .background(color.copy(alpha = 0.28f)),
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ChatRefineBar(onRefine: (String) -> Unit) {
+    SoftCard(padding = 14.dp) {
+        Text("再改一句", color = InkBlack, style = MaterialTheme.typography.titleSmall)
+        Spacer(Modifier.height(8.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            listOf("更安静", "少走路", "更便宜", "改室内", "更热闹").forEach { label ->
+                KawaiiChip(text = label, selected = false, onClick = { onRefine(label) })
+            }
+        }
+    }
+}
+
+private data class ChatQuickChip(
+    val key: String,
+    val label: String,
+)
+
+private fun chatFirstChips(): List<ChatQuickChip> = listOf(
+    ChatQuickChip("date", "约会"),
+    ChatQuickChip("friends", "朋友"),
+    ChatQuickChip("solo", "独处"),
+    ChatQuickChip("rainy", "下雨天"),
+    ChatQuickChip("2h", "2 小时"),
+    ChatQuickChip("low-budget", "低预算"),
+    ChatQuickChip("less-walk", "少走路"),
+    ChatQuickChip("photo", "拍照"),
+    ChatQuickChip("chat", "想聊天"),
+)
+
+private fun String.refineKey(): String {
+    return when (this) {
+        "更安静" -> "quiet"
+        "少走路" -> "less-walk"
+        "更便宜" -> "low-budget"
+        "改室内" -> "rainy"
+        "更热闹" -> "lively"
+        else -> this
     }
 }
 

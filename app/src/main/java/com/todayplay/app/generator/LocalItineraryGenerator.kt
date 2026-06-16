@@ -20,10 +20,20 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
 
+data class ItineraryDraft(
+    val plan: ItineraryPlan,
+    val candidateStops: List<RouteStop>,
+    val candidatePoiCount: Int,
+)
+
 class LocalItineraryGenerator(
     private val contentRepository: TravelContentRepository = TravelContentRepositoryFactory.create(),
 ) {
     fun generate(input: QuestInput, questId: String): ItineraryPlan {
+        return generateDraft(input, questId).plan
+    }
+
+    fun generateDraft(input: QuestInput, questId: String): ItineraryDraft {
         val copy = ItineraryCopy.forLocale(input.localeCode)
         val groupPreference = input.toGroupPreference(copy)
         val contentResult = contentRepository.searchPois(
@@ -34,8 +44,9 @@ class LocalItineraryGenerator(
         val routeCity = resolveRouteCity(groupPreference.mergedCity, contentResult.pois)
         val routeGroupPreference = groupPreference.withRouteCity(routeCity)
         val candidates = contentResult.pois.sameCityOnly(routeCity)
+        val rankedCandidates = rankCandidatesForInput(input, routeGroupPreference, candidates)
         val stopCount = stopCountFor(routeGroupPreference).coerceAtMost(candidates.size)
-        val selectedPois = candidates.take(stopCount).map { copy.localizePoi(it) }
+        val selectedPois = rankedCandidates.take(stopCount).map { copy.localizePoi(it) }
         val stops = selectedPois.mapIndexed { index, poi ->
             poi.toRouteStop(
                 questId = questId,
@@ -46,18 +57,29 @@ class LocalItineraryGenerator(
             )
         }
         val planType = copy.safePlanTypeFor(routeGroupPreference)
+        val intentTitle = input.intentMarker("TP_INTENT_TITLE")
+        val intentSummary = input.intentMarker("TP_INTENT_SUMMARY")
+        val candidateStops = rankedCandidates.take(12).mapIndexed { index, poi ->
+            copy.localizePoi(poi).toRouteStop(
+                questId = questId,
+                order = index + 1,
+                groupPreference = routeGroupPreference,
+                copy = copy,
+                startTimeHint = startTimeHint(index, routeGroupPreference.mergedTimeWindow),
+            )
+        }
 
-        return ItineraryPlan(
+        val plan = ItineraryPlan(
             planId = "plan-$questId",
             planType = planType,
-            title = copy.safeTitleFor(routeGroupPreference, selectedPois, planType),
+            title = intentTitle ?: copy.safeTitleFor(routeGroupPreference, selectedPois, planType),
             city = routeCity,
             relationshipType = routeGroupPreference.relationshipType,
             groupPreference = routeGroupPreference,
             stops = stops,
             estimatedCost = copy.safeEstimateCost(selectedPois, routeGroupPreference.mergedBudget),
             estimatedDuration = routeGroupPreference.mergedTimeWindow,
-            routeSummary = copy.safeRouteSummaryFor(routeGroupPreference, selectedPois),
+            routeSummary = intentSummary ?: copy.safeRouteSummaryFor(routeGroupPreference, selectedPois),
             crowdRisk = copy.safeCrowdRiskFor(selectedPois),
             rainBackup = copy.safeRainBackupFor(selectedPois),
             bestPhotoTime = copy.safeBestPhotoTimeFor(routeGroupPreference),
@@ -72,6 +94,11 @@ class LocalItineraryGenerator(
                 rawNote = contentResult.coverageNote,
             ),
             candidateRouteCount = candidates.size,
+        )
+        return ItineraryDraft(
+            plan = plan,
+            candidateStops = candidateStops,
+            candidatePoiCount = candidates.size,
         )
     }
 
@@ -116,7 +143,7 @@ class LocalItineraryGenerator(
         val updatedPlanType = copy.safePlanTypeFor(plan.groupPreference)
         val updatedPlan = plan.copy(
             planType = updatedPlanType,
-            title = copy.safeTitleFor(plan.groupPreference, updatedPois, updatedPlanType),
+            title = plan.title,
             stops = updatedStops,
             estimatedCost = copy.safeEstimateCost(updatedPois, plan.groupPreference.mergedBudget),
             routeSummary = copy.safeRouteSummaryFor(plan.groupPreference, updatedPois),
@@ -161,7 +188,7 @@ class LocalItineraryGenerator(
         val updatedPlanType = copy.safePlanTypeFor(plan.groupPreference)
         val updatedPlan = plan.copy(
             planType = updatedPlanType,
-            title = copy.safeTitleFor(plan.groupPreference, updatedPois, updatedPlanType),
+            title = plan.title,
             stops = updatedStops,
             estimatedCost = copy.safeEstimateCost(updatedPois, plan.groupPreference.mergedBudget),
             routeSummary = copy.safeRouteSummaryFor(plan.groupPreference, updatedPois),
@@ -290,6 +317,113 @@ class LocalItineraryGenerator(
         }
     }
 
+    private fun rankCandidatesForInput(
+        input: QuestInput,
+        groupPreference: GroupPreference,
+        candidates: List<POI>,
+    ): List<POI> {
+        if (candidates.isEmpty()) return emptyList()
+        val intentText = listOfNotNull(
+            input.note,
+            input.relationship,
+            input.vibe,
+            input.time,
+            input.budget,
+            input.transportMode,
+            input.moods.joinToString(" "),
+        ).joinToString(" ").lowercase(Locale.ROOT)
+        val seed = stableSeedFor(input, groupPreference)
+        val ranked = candidates.mapIndexed { index, poi ->
+            ScoredPoi(
+                poi = poi,
+                score = candidateScore(poi, intentText, input, groupPreference) + stableTie(seed, poi, index),
+            )
+        }
+            .sortedByDescending { scored -> scored.score }
+            .map { scored -> scored.poi }
+        return diversifyByCategory(ranked)
+    }
+
+    private fun candidateScore(
+        poi: POI,
+        intentText: String,
+        input: QuestInput,
+        groupPreference: GroupPreference,
+    ): Double {
+        var score = 0.0
+        val relationship = groupPreference.relationshipType
+        if (relationship in poi.suitableRelationships || "all" in poi.suitableRelationships) score += 28.0
+        score += groupPreference.mergedInterests.count { interest -> poi.matchesInterest(interest) } * 7.0
+
+        if (intentText.hasAny("聊天", "聊聊", "chat") && poi.matchesAny("聊天", "咖啡", "安静", "cafe_chat", "quiet")) {
+            score += 22.0
+        }
+        if (intentText.hasAny("安静", "治愈", "放空", "quiet")) {
+            if (poi.matchesAny("安静", "阅读", "公园", "quiet", "library")) score += 24.0
+            if (poi.matchesAny("热闹", "lively")) score -= 10.0
+        }
+        if (intentText.hasAny("热闹", "组局", "朋友", "lively") && poi.matchesAny("热闹", "吃喝逛", "夜间", "朋友", "lively", "food")) {
+            score += 22.0
+        }
+        if (intentText.hasAny("拍照", "出片", "photo") && poi.matchesAny("拍照", "夜景", "建筑", "photo", "city_view")) {
+            score += 20.0
+        }
+        if (intentText.hasAny("室内", "下雨", "雨天", "indoor")) {
+            if (poi.matchesAny("室内优先", "室内", "下雨天", "indoor", "museum", "library")) score += 24.0
+            if (poi.matchesAny("海边", "公园", "户外")) score -= 8.0
+        }
+        if (intentText.hasAny("少走", "不想走", "别太累", "不累", "低体力")) {
+            if (poi.estimatedStayMinutes <= 60) score += 12.0
+            if (poi.matchesAny("少走路", "低体力", "坐下", "咖啡", "quiet")) score += 20.0
+            if (poi.estimatedStayMinutes >= 90) score -= 9.0
+        }
+        if (intentText.hasAny("低预算", "省钱", "不花钱", "100 元以内", "100元以内")) {
+            if (poi.budgetLevel.startsWith("0") || poi.budgetLevel.contains("100")) score += 18.0
+            if (poi.budgetLevel.contains("300")) score -= 9.0
+        }
+        if (intentText.hasAny("小惊喜", "新鲜", "surprise") && poi.matchesAny("小惊喜", "探店", "surprise")) {
+            score += 16.0
+        }
+        if ((input.time.contains("30") || input.time.contains("90")) && poi.estimatedStayMinutes <= 60) {
+            score += 8.0
+        }
+        return score
+    }
+
+    private fun diversifyByCategory(ranked: List<POI>): List<POI> {
+        val selected = mutableListOf<POI>()
+        val deferred = mutableListOf<POI>()
+        val categoryCounts = mutableMapOf<String, Int>()
+        ranked.forEach { poi ->
+            val category = poi.globalCategory
+            val count = categoryCounts[category] ?: 0
+            if (count == 0 || selected.size < 2) {
+                selected += poi
+                categoryCounts[category] = count + 1
+            } else {
+                deferred += poi
+            }
+        }
+        return selected + deferred
+    }
+
+    private fun stableSeedFor(input: QuestInput, groupPreference: GroupPreference): Int {
+        return listOf(
+            groupPreference.mergedCity,
+            input.relationship,
+            input.time,
+            input.budget,
+            input.vibe,
+            input.moods.joinToString("|"),
+            input.note.orEmpty().take(120),
+        ).joinToString("#").hashCode()
+    }
+
+    private fun stableTie(seed: Int, poi: POI, index: Int): Double {
+        val hash = "$seed-${poi.poiId}-$index".hashCode() and Int.MAX_VALUE
+        return (hash % 1000) / 1000.0
+    }
+
     private fun resolveRouteCity(requestedCity: String, candidates: List<POI>): String {
         val trimmed = requestedCity.trim()
         if (trimmed.isBlank() || trimmed.isBroadCityLabel()) {
@@ -381,6 +515,25 @@ class LocalItineraryGenerator(
         }
     }
 
+    private fun POI.matchesInterest(interest: String): Boolean {
+        val value = interest.lowercase(Locale.ROOT)
+        return tags.any { tag ->
+            val normalizedTag = tag.lowercase(Locale.ROOT)
+            normalizedTag.contains(value) || value.contains(normalizedTag)
+        } || globalCategory.lowercase(Locale.ROOT).contains(value)
+    }
+
+    private fun POI.matchesAny(vararg tokens: String): Boolean {
+        val searchable = (tags + listOf(name, district, globalCategory, recommendationReason))
+            .joinToString(" ")
+            .lowercase(Locale.ROOT)
+        return tokens.any { token -> searchable.contains(token.lowercase(Locale.ROOT)) }
+    }
+
+    private fun String.hasAny(vararg tokens: String): Boolean {
+        return tokens.any { token -> contains(token.lowercase(Locale.ROOT)) }
+    }
+
     private fun interestsForCompanion(relationship: String, interests: List<String>): List<String> {
         return when (relationship) {
             "情侣", "暧昧中" -> (interests + listOf("拍照", "轻松", "情侣")).distinct()
@@ -408,6 +561,11 @@ class LocalItineraryGenerator(
         return "https://www.google.com/maps/search/?api=1&query=$lat,$lng&query_place_id=${encodedName.lowercase(Locale.ROOT)}"
     }
 }
+
+private data class ScoredPoi(
+    val poi: POI,
+    val score: Double,
+)
 
 private data class ReplacementCandidate(
     val poi: POI,

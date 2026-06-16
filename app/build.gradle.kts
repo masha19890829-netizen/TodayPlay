@@ -35,8 +35,8 @@ android {
         applicationId = "com.todayplay.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 78
-        versionName = "0.9.60"
+        versionCode = 79
+        versionName = "0.9.61"
         buildConfigField("String", "BILLING_VERIFY_ENDPOINT", buildConfigString(releaseConfigValue("BILLING_VERIFY_ENDPOINT")))
         buildConfigField("String", "TRAVEL_CONTENT_BASE_URL", buildConfigString(releaseConfigValue("TRAVEL_CONTENT_BASE_URL")))
         buildConfigField("String", "PRIVACY_POLICY_URL", buildConfigString(releaseConfigValue("PRIVACY_POLICY_URL")))

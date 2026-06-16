@@ -55,11 +55,19 @@ class LocalMockTravelContentRepository : TravelContentRepository {
         interests: List<String>,
         relationship: String,
     ): TravelContentSearchResult {
-        val pois = GlobalPoiMockData.search(
-            cityOrQuery = cityOrQuery,
-            interests = interests,
-            relationship = relationship,
-        )
+        val pois = (
+            ChatFirstPoiMockData.search(
+                cityOrQuery = cityOrQuery,
+                interests = interests,
+                relationship = relationship,
+            ) +
+                GlobalPoiMockData.search(
+                    cityOrQuery = cityOrQuery,
+                    interests = interests,
+                    relationship = relationship,
+                )
+            )
+            .distinctBy { poi -> poi.poiId }
         return TravelContentSearchResult(
             pois = pois,
             sourcePolicy = pois.firstOrNull()?.contentSource?.sourcePolicy ?: GlobalPoiMockData.productionSourcePolicy,

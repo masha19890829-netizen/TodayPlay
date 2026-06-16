@@ -81,10 +81,46 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         })
 
     add(
-        "V0.9.60 AI external-test version metadata",
-        'versionName = "0.9.60"' in build_gradle and "versionCode = 78" in build_gradle,
-        "expected versionName=0.9.60 and versionCode=78",
+        "V0.9.61 chat-first version metadata",
+        'versionName = "0.9.61"' in build_gradle and "versionCode = 79" in build_gradle,
+        "expected versionName=0.9.61 and versionCode=79",
         "Keep every external-test APK versioned independently so testers never install an ambiguous build.",
+    )
+
+    chat_first_tokens = [
+        "ChatFirstHomeExperience",
+        "今天想怎么玩？",
+        "生成今天的玩法",
+        "CandidateRouteCard",
+        "RouteIntentInterpreter.interpret",
+        "RouteIntentInterpreter.buildCandidateCards",
+        "为你生成了",
+        "再改一句",
+        "RouteTuneCard",
+        "onTuneRoute",
+    ]
+    add(
+        "Chat-first home and route tuning path",
+        has_all(home_screen + result_screen + main_activity, chat_first_tokens),
+        f"tokens={chat_first_tokens}",
+        "Keep the primary home path as a single AI-style prompt that generates candidate cards, then allows route tuning from the result page.",
+    )
+
+    personalized_route_tokens = [
+        "ChatFirstPoiMockData.search",
+        "generateDraft(input, questId)",
+        "rankCandidatesForInput",
+        "candidateScore",
+        "stableSeedFor",
+        "diversifyByCategory",
+        "candidateStops",
+        "AI selected from a same-city candidate pool",
+    ]
+    add(
+        "Personalized candidate-pool route engine",
+        has_all(generator + ai_generator + read_text(app_root / "data" / "TravelContentRepository.kt"), personalized_route_tokens),
+        f"tokens={personalized_route_tokens}",
+        "Keep AI and local fallback generation based on a same-city candidate pool plus input scoring, not a fixed first-N local route.",
     )
 
     ai_boundary_tokens = [

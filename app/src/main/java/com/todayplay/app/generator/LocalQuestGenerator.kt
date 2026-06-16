@@ -23,13 +23,15 @@ class LocalQuestGenerator : QuestGenerator {
             "你们都觉得安全舒服的角落",
         ).random()
 
-        val title = QuestContentPools.titleTemplates
+        val generatedTitle = QuestContentPools.titleTemplates
             .weightedFor(input)
             .random()
             .replace("{city}", city ?: "附近")
             .replace("{place}", place)
 
-        val storySetup = buildStorySetup(input, place)
+        val title = input.intentMarker("TP_INTENT_TITLE") ?: generatedTitle
+        val intentSummary = input.intentMarker("TP_INTENT_SUMMARY")
+        val storySetup = intentSummary ?: buildStorySetup(input, place)
         val tasks = buildTaskCandidates(input).shuffled().take(3).mapIndexed { index, task ->
             task.copy(
                 cuteTip = QuestContentPools.cuteTips.random(),
@@ -65,7 +67,7 @@ class LocalQuestGenerator : QuestGenerator {
             endingRitual = QuestContentPools.endingRituals.random(),
             completionTitle = QuestContentPools.completionTitles.random(),
             completionKeywords = keywords,
-            completionSummary = QuestContentPools.completionSummaries.random(),
+            completionSummary = intentSummary ?: QuestContentPools.completionSummaries.random(),
             itineraryPlan = itineraryPlan,
         )
     }

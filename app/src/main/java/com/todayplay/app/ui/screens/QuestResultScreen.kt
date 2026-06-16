@@ -101,6 +101,7 @@ fun QuestResultScreen(
     onBack: () -> Unit,
     onShare: () -> Unit,
     onRegenerate: () -> Unit,
+    onTuneRoute: (String) -> Unit,
     onSave: () -> Unit,
     onHome: () -> Unit,
 ) {
@@ -151,6 +152,11 @@ fun QuestResultScreen(
                     }
                     item {
                         FadeItem(visibleCount >= 2) {
+                            RouteTuneCard(onTuneRoute = onTuneRoute)
+                        }
+                    }
+                    item {
+                        FadeItem(visibleCount >= 3) {
                             RouteVisualPreviewCard(
                                 record = record,
                                 locale = locale,
@@ -159,7 +165,7 @@ fun QuestResultScreen(
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 3) {
+                        FadeItem(visibleCount >= 4) {
                             RouteExecutionCard(
                                 record = record,
                                 locale = locale,
@@ -176,23 +182,23 @@ fun QuestResultScreen(
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 4) {
+                        FadeItem(visibleCount >= 5) {
                             MissionSummaryCard(quest = quest, progress = progress, completed = resolvedSteps, total = totalSteps, copy = copy)
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 5) {
+                        FadeItem(visibleCount >= 6) {
                             ItineraryOverviewCard(record, copy)
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 6) {
+                        FadeItem(visibleCount >= 7) {
                             RoutePlaybookCard(record, locale)
                         }
                     }
                     itineraryPlan.stops.forEach { stop ->
                         item {
-                            FadeItem(visibleCount >= 7) {
+                            FadeItem(visibleCount >= 8) {
                                 RouteStopCard(
                                     stop = stop,
                                     status = progressState.statusFor(stop.checkInTask.taskId),
@@ -364,7 +370,7 @@ private fun PersonalFitCard(record: QuestRecord, locale: TodayPlayLocale) {
             Spacer(Modifier.height(6.dp))
         }
         Text(
-            aiCoverageNote(locale, record.quest.tags.any { it.contains("AI") }),
+            cleanAiCoverageNote(locale, record.quest.tags.any { it.contains("AI") }),
             color = CherryPressed,
             style = MaterialTheme.typography.labelSmall,
             maxLines = 2,
@@ -389,6 +395,43 @@ private fun aiCoverageNote(locale: TodayPlayLocale, aiAssisted: Boolean): String
             "AI route text is based on your input; POI data remains a local sample."
         } else {
             "Local fallback route; POI data remains a local sample."
+        }
+    }
+}
+
+private fun cleanAiCoverageNote(locale: TodayPlayLocale, aiAssisted: Boolean): String {
+    return when (locale) {
+        TodayPlayLocale.SimplifiedChinese -> if (aiAssisted) {
+            "AI 已从同城候选池按你的输入选点和排序；地点仍为本地样例，出发前请确认营业与交通。"
+        } else {
+            "已使用本地个性化路线引擎生成；地点仍为本地样例，出发前请确认营业与交通。"
+        }
+        TodayPlayLocale.TraditionalChinese -> if (aiAssisted) {
+            "AI 已從同城候選池按你的輸入選點和排序；地點仍為本地樣例，出發前請確認營業與交通。"
+        } else {
+            "已使用本地個性化路線引擎生成；地點仍為本地樣例，出發前請確認營業與交通。"
+        }
+        else -> if (aiAssisted) {
+            "AI selected and ordered stops from same-city candidates. POI data remains a local sample."
+        } else {
+            "Generated with the local personalized route engine. POI data remains a local sample."
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun RouteTuneCard(onTuneRoute: (String) -> Unit) {
+    SoftCard(padding = 14.dp) {
+        Text("继续调味", color = InkBlack, style = MaterialTheme.typography.titleSmall)
+        Spacer(Modifier.height(8.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            listOf("更安静", "少走路", "更便宜", "改室内", "更热闹").forEach { label ->
+                KawaiiChip(text = label, selected = false, onClick = { onTuneRoute(label) })
+            }
         }
     }
 }

@@ -253,6 +253,10 @@ private fun TodayPlayApp() {
                             screen = AppScreen.Create
                         }
                     },
+                    onTuneRoute = { tune ->
+                        val input = (viewModel.latestInput ?: record.toReplayInput(selectedLocale.code)).tunedFor(tune)
+                        startGeneration(input, "result_tune")
+                    },
                     onSave = viewModel::saveLatest,
                     onHome = { screen = AppScreen.Home },
                 )
@@ -341,4 +345,80 @@ private fun QuestRecord.toReplayInput(localeCode: String): QuestInput {
         transportMode = plan?.groupPreference?.mergedTransportMode ?: "地铁/步行",
         localeCode = localeCode,
     )
+}
+
+private fun QuestInput.tunedFor(tune: String): QuestInput {
+    val extraMood = when (tune) {
+        "更安静" -> "想安静"
+        "少走路" -> "少走路"
+        "更便宜" -> "低预算"
+        "改室内" -> "室内优先"
+        "更热闹" -> "想热闹"
+        else -> tune
+    }
+    val tunedBudget = if (tune == "更便宜") "100 元以内" else budget
+    val tunedTime = if (tune == "少走路" && !time.contains("30")) "90 分钟" else time
+    val tunedNote = listOfNotNull(
+        note?.takeIf { it.isNotBlank() },
+        "用户继续修改：$tune",
+    ).joinToString("\n")
+    val tuneMarkers = tune.intentTuneMarkers()
+    val baseNoteWithoutIntent = tunedNote
+        .lineSequence()
+        .filterNot { it.trim().startsWith("TP_INTENT_") }
+        .joinToString("\n")
+        .takeIf { it.isNotBlank() }
+    val tunedNoteWithIntent = listOfNotNull(
+        baseNoteWithoutIntent,
+        "TP_INTENT_TITLE=${tuneMarkers.title}",
+        "TP_INTENT_SUMMARY=${tuneMarkers.summary}",
+        "TP_INTENT_STRATEGY=${tuneMarkers.strategy}",
+    ).joinToString("\n")
+    return copy(
+        moods = (moods + extraMood).distinct().take(8),
+        budget = tunedBudget,
+        time = tunedTime,
+        note = tunedNoteWithIntent,
+    )
+}
+
+private data class TuneIntentMarkers(
+    val title: String,
+    val summary: String,
+    val strategy: String,
+)
+
+private fun String.intentTuneMarkers(): TuneIntentMarkers {
+    return when {
+        contains("安") -> TuneIntentMarkers(
+            title = "安静恢复路线",
+            summary = "少一点打扰，多一点余地：安静咖啡 -> 短距离散步 -> 可提前结束",
+            strategy = "quiet",
+        )
+        contains("走") -> TuneIntentMarkers(
+            title = "少走路路线",
+            summary = "把站点压近一点：先坐下 -> 附近轻逛 -> 低体力收尾",
+            strategy = "short",
+        )
+        contains("便") -> TuneIntentMarkers(
+            title = "低预算轻玩法",
+            summary = "把消费压低：免费街区 -> 小店补给 -> 城市照片点",
+            strategy = "budget",
+        )
+        contains("室") -> TuneIntentMarkers(
+            title = "室内安心路线",
+            summary = "优先避开天气和排队：室内坐下 -> 轻阅读 -> 可选小食",
+            strategy = "indoor",
+        )
+        contains("热") -> TuneIntentMarkers(
+            title = "热闹组局路线",
+            summary = "多一点氛围：热闹小店 -> 夜景拍照 -> 收尾聊天",
+            strategy = "lively",
+        )
+        else -> TuneIntentMarkers(
+            title = "重新调味路线",
+            summary = "按刚才的新要求重新排序站点，保留同城和预算边界。",
+            strategy = "fit",
+        )
+    }
 }
