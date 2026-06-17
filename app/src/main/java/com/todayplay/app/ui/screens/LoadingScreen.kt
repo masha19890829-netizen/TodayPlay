@@ -1,6 +1,7 @@
 package com.todayplay.app.ui.screens
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.border
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -10,14 +11,25 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
@@ -81,7 +94,7 @@ fun LoadingScreen(
 
     Box(Modifier.fillMaxSize()) {
         Image(
-            painter = painterResource(R.drawable.romantic_ticket),
+            painter = painterResource(R.drawable.tp_art_loading_route),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
@@ -98,63 +111,88 @@ fun LoadingScreen(
                     ),
                 ),
         )
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(36.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .statusBarsPadding()
+                .navigationBarsPadding(),
         ) {
-            Text(
-                text = if (generationState.status == GenerationStatus.Failed) {
-                    strings.loadingFailedTitle
-                } else {
-                    strings.loadingTitle
-                },
-                color = InkBlack,
-                fontFamily = FontFamily.Serif,
-                fontSize = 28.sp,
-                lineHeight = 36.sp,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(28.dp))
-            RouteBuildAnimation(
-                active = generationState.status != GenerationStatus.Failed,
-                label = strings.loadingTitle,
-                modifier = Modifier.size(width = 230.dp, height = 150.dp),
-            )
-            Spacer(Modifier.height(24.dp))
-            Text(
-                text = if (generationState.status == GenerationStatus.Failed) {
-                    strings.loadingFailedBody
-                } else {
-                    lines[lineIndex]
-                },
-                color = WarmGray,
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-            )
-            if (generationState.status == GenerationStatus.Failed) {
-                Spacer(Modifier.height(24.dp))
-                HeartPrimaryButton(
-                    text = strings.loadingRetry,
-                    onClick = onRetry,
-                    modifier = Modifier.fillMaxWidth(),
+            val compact = maxHeight < 700.dp || maxWidth < 360.dp || maxWidth > maxHeight
+            val scrollState = rememberScrollState()
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(
+                        horizontal = if (compact) 20.dp else 36.dp,
+                        vertical = if (compact) 20.dp else 36.dp,
+                    ),
+                verticalArrangement = if (compact) Arrangement.Top else Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = if (generationState.status == GenerationStatus.Failed) {
+                        strings.loadingFailedTitle
+                    } else {
+                        strings.loadingTitle
+                    },
+                    color = InkBlack,
+                    fontFamily = FontFamily.Serif,
+                    fontSize = if (compact) 24.sp else 28.sp,
+                    lineHeight = if (compact) 31.sp else 36.sp,
+                    textAlign = TextAlign.Center,
                 )
-                Spacer(Modifier.height(12.dp))
-                GhostButton(
-                    text = strings.loadingBackToEdit,
-                    onClick = onBack,
-                    modifier = Modifier.fillMaxWidth(),
+                Spacer(Modifier.height(if (compact) 18.dp else 28.dp))
+                RouteBuildAnimation(
+                    active = generationState.status != GenerationStatus.Failed,
+                    succeeded = generationState.status == GenerationStatus.Succeeded,
+                    stageIndex = lineIndex % 4,
+                    label = strings.loadingTitle,
+                    modifier = Modifier.size(
+                        width = if (compact) 200.dp else 230.dp,
+                        height = if (compact) 128.dp else 150.dp,
+                    ),
+                )
+                Spacer(Modifier.height(if (compact) 12.dp else 16.dp))
+                LoadingStageRail(
+                    activeIndex = lineIndex % 4,
+                    succeeded = generationState.status == GenerationStatus.Succeeded,
+                    compact = compact,
+                )
+                Spacer(Modifier.height(if (compact) 14.dp else 20.dp))
+                Text(
+                    text = if (generationState.status == GenerationStatus.Failed) {
+                        strings.loadingFailedBody
+                    } else {
+                        lines[lineIndex]
+                    },
+                    color = WarmGray,
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                )
+                if (generationState.status == GenerationStatus.Failed) {
+                    Spacer(Modifier.height(if (compact) 16.dp else 24.dp))
+                    HeartPrimaryButton(
+                        text = strings.loadingRetry,
+                        onClick = onRetry,
+                        modifier = Modifier.fillMaxWidth().widthIn(max = 520.dp),
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    GhostButton(
+                        text = strings.loadingBackToEdit,
+                        onClick = onBack,
+                        modifier = Modifier.fillMaxWidth().widthIn(max = 520.dp),
+                    )
+                }
+                Spacer(Modifier.height(if (compact) 30.dp else 64.dp))
+                Text(
+                    text = strings.loadingFooter,
+                    color = WarmGray,
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.heightIn(min = 18.dp),
                 )
             }
-            Spacer(Modifier.height(64.dp))
-            Text(
-                text = strings.loadingFooter,
-                color = WarmGray,
-                style = MaterialTheme.typography.labelSmall,
-                textAlign = TextAlign.Center,
-            )
         }
     }
 }
@@ -162,6 +200,8 @@ fun LoadingScreen(
 @Composable
 private fun RouteBuildAnimation(
     active: Boolean,
+    succeeded: Boolean,
+    stageIndex: Int,
     label: String,
     modifier: Modifier = Modifier,
 ) {
@@ -198,9 +238,14 @@ private fun RouteBuildAnimation(
                 mid.y + (end.y - mid.y) * ((p - 0.55f) / 0.45f).coerceIn(0f, 1f),
             )
             drawCircle(
-                color = TicketBeige.copy(alpha = 0.48f),
+                color = TicketBeige.copy(alpha = if (succeeded) 0.66f else 0.48f),
                 radius = size.minDimension * 0.42f,
                 center = Offset(size.width * 0.72f, size.height * 0.26f),
+            )
+            drawCircle(
+                color = RoseGold.copy(alpha = 0.12f + stageIndex * 0.025f),
+                radius = size.minDimension * (0.12f + stageIndex * 0.025f),
+                center = Offset(size.width * 0.30f, size.height * 0.28f),
             )
             drawLine(
                 color = LineBeige.copy(alpha = 0.86f),
@@ -249,5 +294,85 @@ private fun RouteBuildAnimation(
             style = MaterialTheme.typography.labelSmall,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 22.dp),
         )
+        if (succeeded) {
+            LoadingStamp(modifier = Modifier.align(Alignment.TopEnd).padding(20.dp))
+        }
     }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun LoadingStageRail(
+    activeIndex: Int,
+    succeeded: Boolean,
+    compact: Boolean,
+) {
+    val stages = listOf("理解需求", "排列路线", "检查预算", "打印票根")
+    val railModifier = Modifier
+        .fillMaxWidth()
+        .widthIn(max = 620.dp)
+        .clip(RoundedCornerShape(18.dp))
+        .background(GalleryWhite.copy(alpha = 0.66f))
+        .border(1.dp, LineBeige.copy(alpha = 0.72f), RoundedCornerShape(18.dp))
+        .padding(horizontal = 10.dp, vertical = 8.dp)
+    if (compact) {
+        FlowRow(
+            modifier = railModifier,
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            stages.forEachIndexed { index, stage ->
+                val active = succeeded || index == activeIndex
+                Text(
+                    text = stage,
+                    color = if (active) CherryPressed else WarmGray,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .widthIn(min = 104.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(if (active) RoseGold.copy(alpha = 0.18f) else WarmCream.copy(alpha = 0.36f))
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+    } else {
+        Row(
+            modifier = railModifier,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            stages.forEachIndexed { index, stage ->
+                val active = succeeded || index == activeIndex
+                Text(
+                    text = stage,
+                    color = if (active) CherryPressed else WarmGray,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(if (active) RoseGold.copy(alpha = 0.18f) else WarmCream.copy(alpha = 0.36f))
+                        .padding(horizontal = 6.dp, vertical = 6.dp),
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LoadingStamp(modifier: Modifier = Modifier) {
+    Text(
+        text = "OK",
+        color = CherryPressed,
+        style = MaterialTheme.typography.labelSmall,
+        modifier = modifier
+            .clip(CircleShape)
+            .background(GalleryWhite.copy(alpha = 0.82f))
+            .border(1.dp, CherryPressed.copy(alpha = 0.42f), CircleShape)
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+            .graphicsLayer { rotationZ = -9f },
+    )
 }

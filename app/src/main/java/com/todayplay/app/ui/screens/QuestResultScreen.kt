@@ -2,6 +2,12 @@ package com.todayplay.app.ui.screens
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
@@ -44,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -438,6 +445,13 @@ private fun RouteTuneCard(onTuneRoute: (String) -> Unit) {
 
 @Composable
 private fun ResultHero(quest: Quest, copy: ResultStrings) {
+    val transition = rememberInfiniteTransition(label = "result-hero-breath")
+    val zoom by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.035f,
+        animationSpec = infiniteRepeatable(tween(4200), RepeatMode.Reverse),
+        label = "result-hero-zoom",
+    )
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -449,7 +463,12 @@ private fun ResultHero(quest: Quest, copy: ResultStrings) {
             painter = painterResource(R.drawable.romantic_ticket),
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = zoom
+                    scaleY = zoom
+                },
         )
         Box(
             Modifier
@@ -501,6 +520,11 @@ private fun MissionSummaryCard(
     total: Int,
     copy: ResultStrings,
 ) {
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(620),
+        label = "mission-progress",
+    )
     SoftCard {
         SectionHeader("00", copy.summaryTitle, copy.summaryEnglish)
         Spacer(Modifier.height(12.dp))
@@ -513,7 +537,7 @@ private fun MissionSummaryCard(
         )
         Spacer(Modifier.height(14.dp))
         LinearProgressIndicator(
-            progress = { progress },
+            progress = { animatedProgress },
             color = CherryPressed,
             trackColor = LineBeige,
             modifier = Modifier
@@ -574,14 +598,18 @@ private fun RouteVisualPreviewCard(
             }
         }
         Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Text(
                 copy.visualMapHint,
                 color = WarmGray,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.widthIn(min = 190.dp, max = 560.dp),
             )
             KawaiiChip(text = copy.visualOpenCurrentMap, selected = true, onClick = { onOpenMap(currentStop) })
         }
@@ -594,6 +622,13 @@ private fun RouteSketchMap(
     currentStop: RouteStop,
     record: QuestRecord,
 ) {
+    val transition = rememberInfiniteTransition(label = "route-sketch-map")
+    val pulse by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Restart),
+        label = "route-current-pulse",
+    )
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -629,6 +664,13 @@ private fun RouteSketchMap(
                 val stop = plan.stops.getOrNull(index)
                 val done = stop != null && record.progress.statusFor(stop.checkInTask.taskId).isResolved()
                 val active = stop?.stopId == currentStop.stopId
+                if (active) {
+                    drawCircle(
+                        color = CherryPressed.copy(alpha = 0.16f * (1f - pulse)),
+                        radius = 18f + 12f * pulse,
+                        center = point,
+                    )
+                }
                 drawCircle(
                     color = when {
                         active -> CherryPressed
@@ -906,23 +948,40 @@ private fun RouteProgressTimeline(
 
 @Composable
 private fun TimelineDot(resolved: Boolean, current: Boolean) {
-    Box(
-        modifier = Modifier
-            .size(if (current) 22.dp else 18.dp)
-            .clip(CircleShape)
-            .background(
-                when {
-                    resolved -> CherryPressed
-                    current -> RoseGold
-                    else -> GalleryWhite
-                },
-            )
-            .border(
-                2.dp,
-                if (current || resolved) CherryPressed.copy(alpha = 0.76f) else LineBeige,
-                CircleShape,
-            ),
+    val transition = rememberInfiniteTransition(label = "timeline-dot")
+    val pulse by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Restart),
+        label = "timeline-dot-pulse",
     )
+    Box(contentAlignment = Alignment.Center) {
+        if (current) {
+            Box(
+                modifier = Modifier
+                    .size((28 + 8 * pulse).dp)
+                    .clip(CircleShape)
+                    .background(CherryPressed.copy(alpha = 0.10f * (1f - pulse))),
+            )
+        }
+        Box(
+            modifier = Modifier
+                .size(if (current) 22.dp else 18.dp)
+                .clip(CircleShape)
+                .background(
+                    when {
+                        resolved -> CherryPressed
+                        current -> RoseGold
+                        else -> GalleryWhite
+                    },
+                )
+                .border(
+                    2.dp,
+                    if (current || resolved) CherryPressed.copy(alpha = 0.76f) else LineBeige,
+                    CircleShape,
+                ),
+        )
+    }
 }
 
 @Composable

@@ -53,6 +53,9 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
     romantic_friend_asset = root / "app" / "src" / "main" / "res" / "drawable-nodpi" / "romantic_friend.png"
     romantic_solo_asset = root / "app" / "src" / "main" / "res" / "drawable-nodpi" / "romantic_solo.png"
     romantic_ticket_asset = root / "app" / "src" / "main" / "res" / "drawable-nodpi" / "romantic_ticket.png"
+    tp_art_splash_asset = root / "app" / "src" / "main" / "res" / "drawable-nodpi" / "tp_art_splash_companion.webp"
+    tp_art_home_asset = root / "app" / "src" / "main" / "res" / "drawable-nodpi" / "tp_art_home_companion.webp"
+    tp_art_loading_asset = root / "app" / "src" / "main" / "res" / "drawable-nodpi" / "tp_art_loading_route.webp"
     share_screen = read_text(app_root / "ui" / "screens" / "ShareCardScreen.kt")
     privacy_screen = read_text(app_root / "ui" / "screens" / "PrivacyScreen.kt")
     view_model = read_text(app_root / "TodayPlayViewModel.kt")
@@ -81,9 +84,9 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         })
 
     add(
-        "V0.9.61 chat-first version metadata",
-        'versionName = "0.9.61"' in build_gradle and "versionCode = 79" in build_gradle,
-        "expected versionName=0.9.61 and versionCode=79",
+        "V0.9.62 art-motion version metadata",
+        'versionName = "0.9.62"' in build_gradle and "versionCode = 80" in build_gradle,
+        "expected versionName=0.9.62 and versionCode=80",
         "Keep every external-test APK versioned independently so testers never install an ambiguous build.",
     )
 
@@ -558,6 +561,31 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         has_all(main_activity + splash_screen + loading_screen, motion_tokens),
         f"tokens={motion_tokens}",
         "Keep opening, inter-screen, and route-generation loading moments animated in the romantic cinematic visual style.",
+    )
+
+    art_motion_tokens = [
+        "tp_art_splash_companion",
+        "SplashStampMark",
+        "tp_art_home_companion",
+        "ChatFirstCompanionIntro",
+        "chat-companion-breath",
+        "tp_art_loading_route",
+        "LoadingStageRail",
+        "LoadingStamp",
+        "result-hero-breath",
+        "route-current-pulse",
+        "timeline-dot-pulse",
+    ]
+    art_assets_exist = all(
+        asset.exists() and asset.stat().st_size < 2_000_000
+        for asset in [tp_art_splash_asset, tp_art_home_asset, tp_art_loading_asset]
+    )
+    add(
+        "V0.9.62 art and calm motion layer",
+        has_all(splash_screen + home_screen + loading_screen + result_screen, art_motion_tokens)
+        and art_assets_exist,
+        f"tokens={art_motion_tokens}; artAssetsExistAndSmall={art_assets_exist}",
+        "Keep splash, chat-first home, loading, and result pages visually alive with project-local lightweight art and restrained motion.",
     )
 
     adaptive_text_tokens = [

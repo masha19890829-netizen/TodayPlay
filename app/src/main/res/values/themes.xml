@@ -2,8 +2,10 @@
 <resources>
     <style name="Theme.TodayPlay" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
+        <item name="android:windowBackground">#FAF4EC</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:navigationBarColor">#FFF6FA</item>
-        <item name="android:colorAccent">#FF7CAD</item>
+        <item name="android:statusBarColor">#FAF4EC</item>
+        <item name="android:navigationBarColor">#FAF4EC</item>
+        <item name="android:colorAccent">#B76267</item>
     </style>
 </resources>

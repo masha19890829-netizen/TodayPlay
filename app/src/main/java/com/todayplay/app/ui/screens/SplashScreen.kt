@@ -1,14 +1,16 @@
 package com.todayplay.app.ui.screens
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,24 +29,30 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.todayplay.app.R
 import com.todayplay.app.localization.LocalTodayPlayStrings
 import com.todayplay.app.ui.components.PaperBackground
 import com.todayplay.app.ui.theme.CherryPressed
-import com.todayplay.app.ui.theme.DustPink
+import com.todayplay.app.ui.theme.GalleryWhite
 import com.todayplay.app.ui.theme.InkBlack
 import com.todayplay.app.ui.theme.RoseGold
-import com.todayplay.app.ui.theme.GalleryWhite
 import com.todayplay.app.ui.theme.WarmGray
 import kotlinx.coroutines.delay
 
-private const val SplashIntroMillis = 1600L
+private const val SplashIntroMillis = 1900L
 
 @Composable
 fun SplashScreen(onFinished: () -> Unit) {
@@ -71,68 +80,146 @@ fun SplashScreen(onFinished: () -> Unit) {
         animationSpec = infiniteRepeatable(tween(1500), RepeatMode.Reverse),
         label = "float-y",
     )
+
     PaperBackground {
+        Image(
+            painter = painterResource(R.drawable.tp_art_splash_companion),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    alpha = introAlpha * 0.92f
+                    scaleX = 1.02f
+                    scaleY = 1.02f
+                    translationY = floatY * 2.2f
+                },
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0f to GalleryWhite.copy(alpha = 0.92f),
+                        0.30f to GalleryWhite.copy(alpha = 0.54f),
+                        0.68f to GalleryWhite.copy(alpha = 0.18f),
+                        1f to GalleryWhite.copy(alpha = 0.90f),
+                    ),
+                ),
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(32.dp),
-            verticalArrangement = Arrangement.Center,
+                .padding(horizontal = 32.dp, vertical = 44.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            SplashRouteMotion(
-                progress = introAlpha,
-                drift = floatY,
-                modifier = Modifier.size(width = 210.dp, height = 96.dp),
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = strings.splashProposal,
+                    color = WarmGray,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.graphicsLayer { alpha = introAlpha },
+                )
+                Spacer(Modifier.height(20.dp))
+                Text(
+                    text = strings.appName,
+                    color = InkBlack,
+                    style = MaterialTheme.typography.displayLarge,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.graphicsLayer {
+                        alpha = introAlpha
+                        scaleX = introScale
+                        scaleY = introScale
+                    },
+                )
+                Text(
+                    text = strings.appEnglishName,
+                    color = InkBlack,
+                    fontFamily = FontFamily.Serif,
+                    fontSize = 20.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.graphicsLayer { alpha = introAlpha },
+                )
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = strings.splashTagline,
+                    color = WarmGray,
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.graphicsLayer { alpha = introAlpha },
+                )
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                SplashRouteMotion(
+                    progress = introAlpha,
+                    drift = floatY,
+                    modifier = Modifier.size(width = 240.dp, height = 110.dp),
+                )
+                Spacer(Modifier.height(12.dp))
+                SplashStampMark(
+                    progress = introAlpha,
+                    drift = floatY,
+                    modifier = Modifier.size(72.dp),
+                )
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = strings.splashFooter,
+                    color = CherryPressed,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.graphicsLayer { alpha = introAlpha },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SplashStampMark(
+    progress: Float,
+    drift: Float,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .offset(y = (drift * 0.6f).dp)
+            .clip(CircleShape)
+            .background(GalleryWhite.copy(alpha = 0.72f))
+            .graphicsLayer {
+                alpha = progress
+                rotationZ = -8f + progress * 8f
+                scaleX = 0.82f + progress * 0.18f
+                scaleY = 0.82f + progress * 0.18f
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            drawCircle(
+                color = CherryPressed.copy(alpha = 0.58f),
+                radius = size.minDimension * 0.46f,
+                center = center,
+                style = Stroke(width = 3.2f),
             )
-            Spacer(Modifier.height(20.dp))
-            Text(
-                text = strings.splashProposal,
-                color = WarmGray,
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.graphicsLayer { alpha = introAlpha },
+            drawCircle(
+                color = RoseGold.copy(alpha = 0.24f),
+                radius = size.minDimension * 0.30f,
+                center = center,
             )
-            Spacer(Modifier.height(24.dp))
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = strings.appName,
-                color = InkBlack,
-                style = MaterialTheme.typography.displayLarge,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.graphicsLayer {
-                    alpha = introAlpha
-                    scaleX = introScale
-                    scaleY = introScale
-                },
-            )
-            Text(
-                text = strings.appEnglishName,
-                color = InkBlack,
-                fontFamily = FontFamily.Serif,
-                fontSize = 20.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.graphicsLayer { alpha = introAlpha },
-            )
-            Spacer(Modifier.height(18.dp))
-            Text(
-                text = strings.splashTagline,
-                color = WarmGray,
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.graphicsLayer { alpha = introAlpha },
-            )
-            Spacer(Modifier.height(44.dp))
-            Text(
-                text = "心",
-                color = DustPink,
-                fontSize = 32.sp,
-                modifier = Modifier
-                    .offset(y = floatY.dp)
-                    .graphicsLayer { alpha = introAlpha },
-            )
-            Text(
-                text = strings.splashFooter,
+                text = "TODAY",
                 color = CherryPressed,
-                style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.graphicsLayer { alpha = introAlpha },
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.sp,
+            )
+            Text(
+                text = "READY",
+                color = WarmGray,
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.sp,
             )
         }
     }

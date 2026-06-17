@@ -54,6 +54,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -368,6 +369,85 @@ fun HomeScreen(
     }
 }
 
+@Composable
+private fun ChatFirstCompanionIntro(compact: Boolean) {
+    val transition = rememberInfiniteTransition(label = "chat-companion-art")
+    val drift by transition.animateFloat(
+        initialValue = -3f,
+        targetValue = 3f,
+        animationSpec = infiniteRepeatable(tween(1800), RepeatMode.Reverse),
+        label = "chat-companion-drift",
+    )
+    val breath by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.025f,
+        animationSpec = infiniteRepeatable(tween(2400), RepeatMode.Reverse),
+        label = "chat-companion-breath",
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(if (compact) 86.dp else 112.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(
+                Brush.horizontalGradient(
+                    listOf(
+                        GalleryWhite.copy(alpha = 0.88f),
+                        WarmCream.copy(alpha = 0.72f),
+                        RoseGold.copy(alpha = 0.18f),
+                    ),
+                ),
+            )
+            .border(1.dp, RoseGold.copy(alpha = 0.24f), RoundedCornerShape(22.dp)),
+    ) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 16.dp, end = if (compact) 108.dp else 138.dp),
+        ) {
+            Text(
+                text = "今天我先替你想一版",
+                color = InkBlack,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "说一句状态，路线会慢慢浮出来。",
+                color = WarmGray,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = if (compact) 1 else 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Image(
+            painter = painterResource(R.drawable.tp_art_home_companion),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight()
+                .width(if (compact) 104.dp else 132.dp)
+                .graphicsLayer {
+                    translationY = drift
+                    scaleX = breath
+                    scaleY = breath
+                    alpha = 0.96f
+                },
+        )
+        RouteCardMiniVisual(
+            strategy = "quiet",
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 16.dp, bottom = 12.dp)
+                .width(if (compact) 128.dp else 160.dp)
+                .height(28.dp),
+            alpha = 0.42f,
+        )
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ChatFirstHomeExperience(
@@ -453,6 +533,7 @@ private fun ChatFirstHomeExperience(
                             intent = null
                         },
                         onGenerateCards = ::generateCards,
+                        compact = compact,
                     )
                 }
                 if (intent != null && cards.isNotEmpty()) {
@@ -548,8 +629,12 @@ private fun ChatFirstComposer(
     selectedChips: Set<String>,
     onToggleChip: (String) -> Unit,
     onGenerateCards: () -> Unit,
+    compact: Boolean,
 ) {
-    SoftCard(padding = 18.dp) {
+    SoftCard(padding = if (compact) 14.dp else 18.dp) {
+        val visibleQuickChips = if (compact) quickChips.take(8) else quickChips
+        ChatFirstCompanionIntro(compact = compact)
+        Spacer(Modifier.height(if (compact) 10.dp else 14.dp))
         Text(
             text = "今天想怎么玩？",
             color = InkBlack,
@@ -557,15 +642,15 @@ private fun ChatFirstComposer(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(if (compact) 4.dp else 6.dp))
         Text(
             text = "说一句需求，我会先理解你的城市、关系、预算和体力，再给几种可选玩法。",
             color = WarmGray,
             style = MaterialTheme.typography.bodyMedium,
-            maxLines = 2,
+            maxLines = if (compact) 1 else 2,
             overflow = TextOverflow.Ellipsis,
         )
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(if (compact) 10.dp else 14.dp))
         OutlinedTextField(
             value = rawText,
             onValueChange = onRawTextChange,
@@ -576,15 +661,15 @@ private fun ChatFirstComposer(
                 )
             },
             modifier = Modifier.fillMaxWidth(),
-            minLines = 3,
-            maxLines = 4,
+            minLines = if (compact) 2 else 3,
+            maxLines = if (compact) 3 else 4,
             shape = RoundedCornerShape(20.dp),
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = InkBlack),
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(if (compact) 8.dp else 12.dp))
         FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
         ) {
             listOf("上海", "深圳", "广州", "杭州").forEach { city ->
                 KawaiiChip(
@@ -594,12 +679,12 @@ private fun ChatFirstComposer(
                 )
             }
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(if (compact) 7.dp else 10.dp))
         FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
         ) {
-            quickChips.forEach { chip ->
+            visibleQuickChips.forEach { chip ->
                 KawaiiChip(
                     text = chip.label,
                     selected = chip.key in selectedChips,
@@ -607,7 +692,7 @@ private fun ChatFirstComposer(
                 )
             }
         }
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(if (compact) 10.dp else 14.dp))
         HeartPrimaryButton(
             text = "生成今天的玩法",
             onClick = onGenerateCards,
@@ -686,7 +771,12 @@ private fun CandidateRouteCardView(
             overflow = TextOverflow.Ellipsis,
         )
         Spacer(Modifier.height(10.dp))
-        RouteCardMiniVisual(card.strategy)
+        RouteCardMiniVisual(
+            strategy = card.strategy,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(42.dp),
+        )
         Spacer(Modifier.height(10.dp))
         Text(
             text = card.stopPreview.joinToString("  /  "),
@@ -718,7 +808,11 @@ private fun CandidateRouteCardView(
 }
 
 @Composable
-private fun RouteCardMiniVisual(strategy: String) {
+private fun RouteCardMiniVisual(
+    strategy: String,
+    modifier: Modifier = Modifier,
+    alpha: Float = 1f,
+) {
     val color = when (strategy) {
         "quiet" -> RoseGold
         "lively" -> CherryPressed
@@ -728,11 +822,9 @@ private fun RouteCardMiniVisual(strategy: String) {
         else -> InkBlack
     }
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(42.dp)
+        modifier = modifier
             .clip(RoundedCornerShape(14.dp))
-            .background(GalleryWhite.copy(alpha = 0.62f))
+            .background(GalleryWhite.copy(alpha = 0.62f * alpha))
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -741,14 +833,14 @@ private fun RouteCardMiniVisual(strategy: String) {
                 modifier = Modifier
                     .size(if (index == 1) 14.dp else 10.dp)
                     .clip(RoundedCornerShape(999.dp))
-                    .background(color.copy(alpha = 0.78f)),
+                    .background(color.copy(alpha = 0.78f * alpha)),
             )
             if (index < 2) {
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .height(1.dp)
-                        .background(color.copy(alpha = 0.28f)),
+                        .background(color.copy(alpha = 0.28f * alpha)),
                 )
             }
         }
