@@ -30,6 +30,7 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
     app_root = root / "app" / "src" / "main" / "java" / "com" / "todayplay" / "app"
 
     generator = read_text(app_root / "generator" / "LocalItineraryGenerator.kt")
+    route_interpreter = read_text(app_root / "generator" / "RouteIntentInterpreter.kt")
     billing = read_text(app_root / "billing" / "PlayBillingGateway.kt")
     shop = read_text(app_root / "ui" / "screens" / "ShopScreen.kt")
     repository = read_text(app_root / "data" / "QuestRepository.kt")
@@ -84,9 +85,9 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         })
 
     add(
-        "V0.9.62 art-motion version metadata",
-        'versionName = "0.9.62"' in build_gradle and "versionCode = 80" in build_gradle,
-        "expected versionName=0.9.62 and versionCode=80",
+        "V0.9.64 adaptive strategy version metadata",
+        'versionName = "0.9.64"' in build_gradle and "versionCode = 81" in build_gradle,
+        "expected versionName=0.9.64 and versionCode=81",
         "Keep every external-test APK versioned independently so testers never install an ambiguous build.",
     )
 
@@ -586,6 +587,29 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         and art_assets_exist,
         f"tokens={art_motion_tokens}; artAssetsExistAndSmall={art_assets_exist}",
         "Keep splash, chat-first home, loading, and result pages visually alive with project-local lightweight art and restrained motion.",
+    )
+
+    adaptive_strategy_tokens = [
+        "val wide = maxWidth >= 720.dp",
+        "val compact = maxHeight < 720.dp",
+        "val useWideLayout = wide && !shortLandscape",
+        "contentPadding = PaddingValues(pagePadding)",
+        "ChatFirstRoutePrinciples",
+        "更多城市待验证",
+    ]
+    strategy_route_tokens = [
+        'CardSpec("indoor"',
+            "val expandedSpecs = specs.take(5) +",
+        'input.intentMarker("TP_INTENT_STRATEGY")',
+        '"indoor" -> {',
+        'category.contains("indoor")',
+    ]
+    add(
+        "V0.9.64 adaptive home and strategy-scored routes",
+        has_all(home_screen, adaptive_strategy_tokens)
+        and has_all(route_interpreter + generator, strategy_route_tokens),
+        f"homeTokens={adaptive_strategy_tokens}; strategyTokens={strategy_route_tokens}",
+        "Keep the active chat-first home aligned to adaptive breakpoints and ensure selected candidate-card strategy affects POI ranking.",
     )
 
     adaptive_text_tokens = [

@@ -352,6 +352,34 @@ class LocalItineraryGenerator(
     ): Double {
         var score = 0.0
         val relationship = groupPreference.relationshipType
+        val strategy = input.intentMarker("TP_INTENT_STRATEGY").orEmpty()
+        val category = poi.globalCategory.lowercase(Locale.ROOT)
+        when (strategy) {
+            "quiet" -> {
+                if (category.contains("quiet") || category.contains("cafe") || category.contains("library") || category.contains("indoor")) score += 24.0
+                if (category.contains("snack") || category.contains("lively") || category.contains("night")) score -= 8.0
+            }
+            "lively" -> {
+                if (category.contains("snack") || category.contains("food") || category.contains("public") || category.contains("photo")) score += 22.0
+                if (category.contains("library") || category.contains("quiet_indoor")) score -= 6.0
+            }
+            "budget" -> {
+                if (poi.budgetLevel.startsWith("0") || poi.budgetLevel.contains("100")) score += 24.0
+                if (poi.budgetLevel.contains("300")) score -= 12.0
+            }
+            "short" -> {
+                if (poi.estimatedStayMinutes <= 55) score += 22.0
+                if (category.contains("cafe") || category.contains("quiet") || category.contains("public")) score += 8.0
+                if (poi.estimatedStayMinutes >= 80) score -= 10.0
+            }
+            "indoor" -> {
+                if (category.contains("indoor") || category.contains("museum") || category.contains("library") || category.contains("cafe")) score += 28.0
+                if (category.contains("park") || category.contains("walk") || category.contains("night")) score -= 8.0
+            }
+            "surprise" -> {
+                if (category.contains("surprise") || category.contains("lane") || category.contains("photo") || category.contains("citywalk")) score += 18.0
+            }
+        }
         if (relationship in poi.suitableRelationships || "all" in poi.suitableRelationships) score += 28.0
         score += groupPreference.mergedInterests.count { interest -> poi.matchesInterest(interest) } * 7.0
 

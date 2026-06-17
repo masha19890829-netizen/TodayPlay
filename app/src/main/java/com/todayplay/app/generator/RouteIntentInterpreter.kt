@@ -141,7 +141,10 @@ object RouteIntentInterpreter {
             CardSpec("short", "少走路", "区域更集中，随时能撤退", listOf("少走路", "近一点", "坐下聊")),
             CardSpec("surprise", "小惊喜", "在约束里留一点新鲜感", listOf("新鲜", "轻冒险", "有记忆点")),
         )
-        return specs.mapIndexed { index, spec ->
+        val expandedSpecs = specs.take(5) +
+            CardSpec("indoor", "室内优先", "下雨或太热也能继续玩", listOf("室内优先", "少走路", "稳妥")) +
+            specs.drop(5)
+        return expandedSpecs.mapIndexed { index, spec ->
             val title = when (spec.id) {
                 "fit" -> "${intent.primaryGoal}局"
                 "quiet" -> "安静恢复路线"
@@ -150,16 +153,17 @@ object RouteIntentInterpreter {
                 "short" -> "少走路路线"
                 else -> "今天的小惊喜"
             }
+            val resolvedTitle = if (spec.id == "indoor") "室内稳妥路线" else title
             val stopPreview = stopPreviewFor(intent, spec.id)
             val input = intent.toQuestInput(
-                title = title,
+                title = resolvedTitle,
                 strategy = spec.id,
                 summary = "${spec.subtitle}：${stopPreview.joinToString(" → ")}",
                 moodExtras = spec.moodTags,
             )
             CandidateRouteCard(
                 cardId = "card-${intent.intentId}-${spec.id}",
-                title = title,
+                title = resolvedTitle,
                 subtitle = spec.subtitle,
                 strategy = spec.id,
                 stopPreview = stopPreview,
@@ -208,6 +212,7 @@ object RouteIntentInterpreter {
             "lively" -> listOf("热闹小店", "夜景拍照", "收尾聊天")
             "budget" -> listOf("免费街区", "低消费补给", "城市照片点")
             "short" -> listOf("同一区域", "坐下休息", "轻松收尾")
+            "indoor" -> listOf("室内备选", "坐下补给", "雨天收尾")
             "surprise" -> listOf("没去过的小店", "城市转角", "今日记忆点")
             else -> when {
                 intent.primaryGoal.contains("拍照") -> listOf("出片点", "咖啡补给", "夜景收尾")

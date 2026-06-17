@@ -487,20 +487,17 @@ private fun ChatFirstHomeExperience(
 
     PaperBackground {
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            val wide = maxWidth >= 760.dp && maxWidth > maxHeight
-            val compact = maxHeight < 700.dp
+            val wide = maxWidth >= 720.dp
+            val compact = maxHeight < 720.dp
+            val shortLandscape = maxWidth > maxHeight && maxHeight < 520.dp
+            val useWideLayout = wide && !shortLandscape
             val pagePadding = if (maxWidth < 360.dp) 16.dp else 22.dp
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .statusBarsPadding()
                     .navigationBarsPadding(),
-                contentPadding = PaddingValues(
-                    start = pagePadding,
-                    end = pagePadding,
-                    top = if (compact) 14.dp else 22.dp,
-                    bottom = 24.dp,
-                ),
+                contentPadding = PaddingValues(pagePadding),
                 verticalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -511,32 +508,104 @@ private fun ChatFirstHomeExperience(
                         onSaved = onSaved,
                     )
                 }
-                item {
-                    ChatFirstComposer(
-                        rawText = rawText,
-                        onRawTextChange = {
-                            rawText = it.take(180)
-                            cards = emptyList()
-                            intent = null
-                        },
-                        selectedCity = selectedCity,
-                        onCitySelected = {
-                            selectedCity = it
-                            cards = emptyList()
-                            intent = null
-                        },
-                        quickChips = quickChips,
-                        selectedChips = selectedChips,
-                        onToggleChip = {
-                            toggleChip(it)
-                            cards = emptyList()
-                            intent = null
-                        },
-                        onGenerateCards = ::generateCards,
-                        compact = compact,
-                    )
+                if (useWideLayout && intent != null && cards.isNotEmpty()) {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .widthIn(max = 1080.dp),
+                            horizontalArrangement = Arrangement.spacedBy(18.dp),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(0.92f),
+                                verticalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                ChatFirstComposer(
+                                    rawText = rawText,
+                                    onRawTextChange = {
+                                        rawText = it.take(180)
+                                        cards = emptyList()
+                                        intent = null
+                                    },
+                                    selectedCity = selectedCity,
+                                    onCitySelected = {
+                                        selectedCity = it
+                                        cards = emptyList()
+                                        intent = null
+                                    },
+                                    quickChips = quickChips,
+                                    selectedChips = selectedChips,
+                                    onToggleChip = {
+                                        toggleChip(it)
+                                        cards = emptyList()
+                                        intent = null
+                                    },
+                                    onGenerateCards = ::generateCards,
+                                    compact = compact,
+                                )
+                                ChatFirstRoutePrinciples()
+                            }
+                            Column(
+                                modifier = Modifier.weight(1.08f),
+                                verticalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                IntentSummaryCard(intent = intent!!)
+                                CandidateResultHeader(cards.size, wide = true)
+                                CandidateCardGrid(
+                                    cards = cards,
+                                    wide = true,
+                                    onSelect = { card -> onGenerate(card.input) },
+                                )
+                                ChatRefineBar(
+                                    onRefine = { chip ->
+                                        val nextText = listOf(rawText.ifBlank { intent?.rawText.orEmpty() }, chip)
+                                            .filter { it.isNotBlank() }
+                                            .joinToString("，")
+                                        val nextChips = selectedChips + chip.refineKey()
+                                        val nextIntent = RouteIntentInterpreter.interpret(
+                                            rawText = nextText,
+                                            selectedChips = nextChips,
+                                            selectedCity = selectedCity,
+                                            localeCode = locale.code,
+                                        )
+                                        rawText = nextText
+                                        selectedChipKeys = nextChips.joinToString("|")
+                                        intent = nextIntent
+                                        cards = RouteIntentInterpreter.buildCandidateCards(nextIntent).take(6)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    item {
+                        ChatFirstComposer(
+                            rawText = rawText,
+                            onRawTextChange = {
+                                rawText = it.take(180)
+                                cards = emptyList()
+                                intent = null
+                            },
+                            selectedCity = selectedCity,
+                            onCitySelected = {
+                                selectedCity = it
+                                cards = emptyList()
+                                intent = null
+                            },
+                            quickChips = quickChips,
+                            selectedChips = selectedChips,
+                            onToggleChip = {
+                                toggleChip(it)
+                                cards = emptyList()
+                                intent = null
+                            },
+                            onGenerateCards = ::generateCards,
+                            compact = compact,
+                        )
+                    }
                 }
-                if (intent != null && cards.isNotEmpty()) {
+                if (!useWideLayout && intent != null && cards.isNotEmpty()) {
                     item {
                         IntentSummaryCard(intent = intent!!)
                     }
@@ -671,13 +740,14 @@ private fun ChatFirstComposer(
             horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
             verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
         ) {
-            listOf("上海", "深圳", "广州", "杭州").forEach { city ->
+            listOf("上海", "深圳").forEach { city ->
                 KawaiiChip(
                     text = city,
                     selected = city == selectedCity,
                     onClick = { onCitySelected(city) },
                 )
             }
+            KawaiiChip(text = "更多城市待验证", selected = false, onClick = {})
         }
         Spacer(Modifier.height(if (compact) 7.dp else 10.dp))
         FlowRow(
@@ -808,6 +878,83 @@ private fun CandidateRouteCardView(
 }
 
 @Composable
+private fun CandidateResultHeader(count: Int, wide: Boolean = false) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = if (wide) 860.dp else 640.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = "为你生成了 $count 种今天的过法",
+            color = InkBlack,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = "每张卡会把选择策略带进路线，不只是换标题。",
+            color = WarmGray,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun ChatFirstRoutePrinciples() {
+    SoftCard(padding = 14.dp) {
+        Text(
+            text = "生成前先守三条底线",
+            color = InkBlack,
+            style = MaterialTheme.typography.titleSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(8.dp))
+        listOf("只选同城样例点", "按你选的卡片策略排序", "不伪造热度评分营业状态").forEach { line ->
+            Text(
+                text = "· $line",
+                color = WarmGray,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChatFirstEmptyPreviewPanel() {
+    SoftCard(padding = 16.dp) {
+        Text(
+            text = "生成后会出现什么？",
+            color = InkBlack,
+            style = MaterialTheme.typography.titleSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(10.dp))
+        RouteCardMiniVisual(
+            strategy = "fit",
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            alpha = 0.7f,
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = "我会给出最贴合、更安静、低预算、少走路、室内优先等路线卡。选哪张，结果页就继承哪张的标题、站点顺序和理由。",
+            color = WarmGray,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
 private fun RouteCardMiniVisual(
     strategy: String,
     modifier: Modifier = Modifier,
@@ -818,6 +965,7 @@ private fun RouteCardMiniVisual(
         "lively" -> CherryPressed
         "budget" -> WarmGray
         "short" -> DustPink
+        "indoor" -> RoseGold
         "surprise" -> BlackCherry
         else -> InkBlack
     }
