@@ -85,9 +85,9 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         })
 
     add(
-        "V0.9.64 adaptive strategy version metadata",
-        'versionName = "0.9.64"' in build_gradle and "versionCode = 81" in build_gradle,
-        "expected versionName=0.9.64 and versionCode=81",
+        "V0.9.67 typography hotfix version metadata",
+        'versionName = "0.9.67"' in build_gradle and "versionCode = 84" in build_gradle,
+        "expected versionName=0.9.67 and versionCode=84",
         "Keep every external-test APK versioned independently so testers never install an ambiguous build.",
     )
 
@@ -564,6 +564,38 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         "Keep opening, inter-screen, and route-generation loading moments animated in the romantic cinematic visual style.",
     )
 
+    splash_copy_tokens = [
+        "balancedSplashTagline",
+        "把普通日子，剪成\\n只属于你们的一小段电影。",
+        "把普通日子，剪成\\n只屬於你們的一小段電影。",
+        "maxLines = 2",
+        "lineHeight = 28.sp",
+    ]
+    add(
+        "Splash tagline avoids orphan Chinese characters",
+        has_all(splash_screen, splash_copy_tokens),
+        f"tokens={splash_copy_tokens}",
+        "Keep splash subtitle line breaks manually balanced so the final Chinese character or punctuation never sits alone.",
+    )
+
+    home_orphan_copy_tokens = [
+        "说一句状态，路线会浮现。",
+        "比如：今晚两个人，少走路",
+        "maxLines = if (compact) 1 else 2",
+        "TextOverflow.Ellipsis",
+        "if (!compact) {",
+        'setOf("date", "friends", "solo", "less-walk", "movie", "low-budget")',
+        "minLines = if (compact) 1 else 3",
+    ]
+    add(
+        "Home intro copy avoids short orphan tails",
+        has_all(home_screen, home_orphan_copy_tokens)
+        and "路线会慢慢浮出来。" not in home_screen
+        and "别太累，适合聊天" not in home_screen,
+        f"tokens={home_orphan_copy_tokens}",
+        "Keep first-screen helper copy short enough for narrow and foldable screens; avoid awkward one- or two-character tail lines.",
+    )
+
     art_motion_tokens = [
         "tp_art_splash_companion",
         "SplashStampMark",
@@ -610,6 +642,46 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         and has_all(route_interpreter + generator, strategy_route_tokens),
         f"homeTokens={adaptive_strategy_tokens}; strategyTokens={strategy_route_tokens}",
         "Keep the active chat-first home aligned to adaptive breakpoints and ensure selected candidate-card strategy affects POI ranking.",
+    )
+
+    time_cinema_tokens = [
+        'ChatQuickChip("movie", "时光电影")',
+        '"cinema" -> BlackCherry',
+        'wantsCinema',
+        'CardSpec("cinema"',
+        '"时光电影路线"',
+        'TP_INTENT_CINEMA',
+        '"cinema" -> {',
+        'poiId = "sh-cinema-film-park"',
+        'poiId = "tokyo-cinema-suga-steps"',
+        "真实取景地关系需来源核验",
+    ]
+    add(
+        "V0.9.65 time-cinema quest path",
+        has_all(home_screen + route_interpreter + generator + read_text(app_root / "data" / "ChatFirstPoiMockData.kt"), time_cinema_tokens)
+        and "TIME_CINEMA_QUEST_PLAN_V0_9_65_2026-06-17.md" in "\n".join(path.name for path in root.glob("*.md")),
+        f"tokens={time_cinema_tokens}",
+        "Keep the movie-feeling route mode grounded in a visible chat chip, cinema strategy scoring, sample POIs, and explicit source-verification wording.",
+    )
+
+    time_cinema_visual_tokens = [
+        "TimeCinemaTicketCard",
+        "TimeCinemaRouteMap",
+        "TimeCinemaSceneRow",
+        "TODAY WAS PLAYED / 今日电影票",
+        "场记板",
+        "导航当前镜头",
+        "MAP ROUTE",
+        "Act 01",
+        "sourceWarning",
+        "来源状态会单独标注",
+        "isTimeCinemaRoute",
+    ]
+    add(
+        "V0.9.66 time-cinema ticket and route-map result UI",
+        has_all(result_screen, time_cinema_visual_tokens),
+        f"tokens={time_cinema_visual_tokens}",
+        "Keep the time-cinema result page visually centered on a ticket, clapper-board cue, three acts, and a non-official in-app route map.",
     )
 
     adaptive_text_tokens = [

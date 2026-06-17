@@ -414,7 +414,7 @@ private fun ChatFirstCompanionIntro(compact: Boolean) {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "说一句状态，路线会慢慢浮出来。",
+                text = "说一句状态，路线会浮现。",
                 color = WarmGray,
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = if (compact) 1 else 2,
@@ -436,15 +436,17 @@ private fun ChatFirstCompanionIntro(compact: Boolean) {
                     alpha = 0.96f
                 },
         )
-        RouteCardMiniVisual(
-            strategy = "quiet",
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 16.dp, bottom = 12.dp)
-                .width(if (compact) 128.dp else 160.dp)
-                .height(28.dp),
-            alpha = 0.42f,
-        )
+        if (!compact) {
+            RouteCardMiniVisual(
+                strategy = "quiet",
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 16.dp, bottom = 12.dp)
+                    .width(160.dp)
+                    .height(28.dp),
+                alpha = 0.42f,
+            )
+        }
     }
 }
 
@@ -701,7 +703,12 @@ private fun ChatFirstComposer(
     compact: Boolean,
 ) {
     SoftCard(padding = if (compact) 14.dp else 18.dp) {
-        val visibleQuickChips = if (compact) quickChips.take(8) else quickChips
+        val compactChipKeys = setOf("date", "friends", "solo", "less-walk", "movie", "low-budget")
+        val visibleQuickChips = if (compact) {
+            quickChips.filter { it.key in compactChipKeys }
+        } else {
+            quickChips
+        }
         ChatFirstCompanionIntro(compact = compact)
         Spacer(Modifier.height(if (compact) 10.dp else 14.dp))
         Text(
@@ -725,13 +732,13 @@ private fun ChatFirstComposer(
             onValueChange = onRawTextChange,
             placeholder = {
                 Text(
-                    "比如：今晚两个人，预算100内，别太累，适合聊天",
+                    "比如：今晚两个人，少走路",
                     color = WarmGray,
                 )
             },
             modifier = Modifier.fillMaxWidth(),
-            minLines = if (compact) 2 else 3,
-            maxLines = if (compact) 3 else 4,
+            minLines = if (compact) 1 else 3,
+            maxLines = if (compact) 2 else 4,
             shape = RoundedCornerShape(20.dp),
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = InkBlack),
         )
@@ -740,7 +747,7 @@ private fun ChatFirstComposer(
             horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
             verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
         ) {
-            listOf("上海", "深圳").forEach { city ->
+            listOf("上海", "深圳", "东京").forEach { city ->
                 KawaiiChip(
                     text = city,
                     selected = city == selectedCity,
@@ -966,6 +973,7 @@ private fun RouteCardMiniVisual(
         "budget" -> WarmGray
         "short" -> DustPink
         "indoor" -> RoseGold
+        "cinema" -> BlackCherry
         "surprise" -> BlackCherry
         else -> InkBlack
     }
@@ -1026,6 +1034,7 @@ private fun chatFirstChips(): List<ChatQuickChip> = listOf(
     ChatQuickChip("low-budget", "低预算"),
     ChatQuickChip("less-walk", "少走路"),
     ChatQuickChip("photo", "拍照"),
+    ChatQuickChip("movie", "时光电影"),
     ChatQuickChip("chat", "想聊天"),
 )
 

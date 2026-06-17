@@ -18,6 +18,7 @@ data class RouteIntent(
     val transportMode: String,
     val indoorPreference: String,
     val avoidances: List<String>,
+    val wantsCinema: Boolean,
     val confidence: Float,
     val missingFields: List<String>,
 )
@@ -46,6 +47,7 @@ object RouteIntentInterpreter {
     ): RouteIntent {
         val text = rawText.trim()
         val haystack = (text + " " + selectedChips.joinToString(" ")).lowercase(Locale.ROOT)
+        val wantsCinema = hasAny(haystack, "电影", "时光电影", "取景", "名场面", "片段", "cinema", "film", "movie") || "movie" in selectedChips
         val city = cityFromText(text) ?: selectedCity.ifBlank { "上海" }
         val relationship = when {
             hasAny(haystack, "朋友", "friend", "组局", "聚会") || "friends" in selectedChips -> "朋友"
@@ -80,6 +82,7 @@ object RouteIntentInterpreter {
             else -> "室外可接受"
         }
         val primaryGoal = when {
+            wantsCinema -> "电影感打卡"
             hasAny(haystack, "聊天", "聊聊") || "chat" in selectedChips -> "轻松聊天"
             hasAny(haystack, "拍照", "打卡") || "photo" in selectedChips -> "拍照出片"
             hasAny(haystack, "吃", "晚饭", "小吃") -> "吃喝逛"
@@ -92,6 +95,7 @@ object RouteIntentInterpreter {
             if (hasAny(haystack, "安静", "放空", "治愈") || "quiet" in selectedChips) add("想安静")
             if (hasAny(haystack, "热闹", "朋友", "组局") || "lively" in selectedChips) add("想热闹")
             if (hasAny(haystack, "拍照", "出片") || "photo" in selectedChips) add("想拍照")
+            if (wantsCinema) add("电影感")
             if (hasAny(haystack, "聊天", "聊聊") || "chat" in selectedChips) add("想聊天")
             if (indoorPreference == "室内优先") add("室内优先")
             if (moneyBudget.contains("100")) add("低预算")
@@ -127,6 +131,7 @@ object RouteIntentInterpreter {
             transportMode = if (mobility == "可打车") "打车/步行" else "地铁/步行",
             indoorPreference = indoorPreference,
             avoidances = avoidances,
+            wantsCinema = wantsCinema,
             confidence = confidence,
             missingFields = missing,
         )
@@ -142,6 +147,10 @@ object RouteIntentInterpreter {
             CardSpec("surprise", "小惊喜", "在约束里留一点新鲜感", listOf("新鲜", "轻冒险", "有记忆点")),
         )
         val expandedSpecs = specs.take(5) +
+            listOfNotNull(
+                CardSpec("cinema", "时光电影", "把今天剪成一段城市片段", listOf("电影感", "取景灵感", "票根收尾"))
+                    .takeIf { intent.wantsCinema },
+            ) +
             CardSpec("indoor", "室内优先", "下雨或太热也能继续玩", listOf("室内优先", "少走路", "稳妥")) +
             specs.drop(5)
         return expandedSpecs.mapIndexed { index, spec ->
@@ -151,6 +160,7 @@ object RouteIntentInterpreter {
                 "lively" -> if (intent.relationship == "朋友") "今晚组局路线" else "热闹一点路线"
                 "budget" -> "低预算轻玩法"
                 "short" -> "少走路路线"
+                "cinema" -> "时光电影路线"
                 else -> "今天的小惊喜"
             }
             val resolvedTitle = if (spec.id == "indoor") "室内稳妥路线" else title
@@ -172,7 +182,11 @@ object RouteIntentInterpreter {
                 mobilityLabel = mobilityFor(intent, spec.id),
                 whyThisFits = whyFor(intent, spec.id),
                 tradeoff = tradeoffFor(spec.id),
-                sourceNote = "本地样例地点 + AI意图结构，出发前需确认营业时间",
+                sourceNote = if (spec.id == "cinema") {
+                    "电影感样例路线；真实取景地关系需来源核验，不代表官方授权"
+                } else {
+                    "本地样例地点 + AI意图结构，出发前需确认营业时间"
+                },
                 input = input,
             )
         }
@@ -191,6 +205,7 @@ object RouteIntentInterpreter {
             "TP_INTENT_STRATEGY=$strategy",
             "TP_INTENT_GOAL=$primaryGoal",
             "TP_INTENT_INDOOR=$indoorPreference",
+            "TP_INTENT_CINEMA=${if (strategy == "cinema") "true" else "false"}",
             "TP_INTENT_AVOID=${avoidances.joinToString("/")}",
         )
         return QuestInput(
@@ -212,6 +227,7 @@ object RouteIntentInterpreter {
             "lively" -> listOf("热闹小店", "夜景拍照", "收尾聊天")
             "budget" -> listOf("免费街区", "低消费补给", "城市照片点")
             "short" -> listOf("同一区域", "坐下休息", "轻松收尾")
+            "cinema" -> listOf("胶片开场", "名场面感", "票根收尾")
             "indoor" -> listOf("室内备选", "坐下补给", "雨天收尾")
             "surprise" -> listOf("没去过的小店", "城市转角", "今日记忆点")
             else -> when {
@@ -227,6 +243,7 @@ object RouteIntentInterpreter {
         return when (strategy) {
             "short" -> if (intent.timeBudget.contains("30")) "30 分钟" else "90 分钟"
             "lively" -> if (intent.timeBudget.contains("今晚")) "今晚 2 小时" else "2 小时"
+            "cinema" -> if (intent.timeBudget.contains("30")) "90 分钟" else intent.timeBudget
             else -> intent.timeBudget
         }
     }
@@ -234,6 +251,7 @@ object RouteIntentInterpreter {
     private fun budgetFor(intent: RouteIntent, strategy: String): String {
         return when (strategy) {
             "budget" -> "100 元以内"
+            "cinema" -> if (intent.moneyBudget == "愿意消费") "300 元以内" else intent.moneyBudget
             "quiet", "short" -> if (intent.moneyBudget == "愿意消费") "300 元以内" else intent.moneyBudget
             else -> intent.moneyBudget
         }
@@ -242,6 +260,7 @@ object RouteIntentInterpreter {
     private fun mobilityFor(intent: RouteIntent, strategy: String): String {
         return when (strategy) {
             "short", "quiet" -> "少走路"
+            "cinema" -> if (intent.mobility == "少走路") "少走路" else "可步行"
             "lively" -> if (intent.mobility == "少走路") "普通" else intent.mobility
             else -> intent.mobility
         }
@@ -253,6 +272,7 @@ object RouteIntentInterpreter {
             "lively" -> "保留${intent.relationship}一起玩的能量，路线更适合拍照和临时聊天。"
             "budget" -> "预算被放在硬约束里，优先公共空间和低消费补给点。"
             "short" -> "把站点压在更小区域里，避免出门后越走越累。"
+            "cinema" -> "你想要电影感，所以优先选择有镜头感的街区、室内、夜景或票根式收尾。"
             "surprise" -> "不突破预算和城市边界，但给今天留一个没预设的小转角。"
             else -> "按${intent.city}、${intent.relationship}、${intent.timeBudget}和${intent.primaryGoal}一起平衡。"
         }
@@ -264,6 +284,7 @@ object RouteIntentInterpreter {
             "lively" -> "更有气氛，但可能比安静路线多一点人"
             "budget" -> "更省钱，但消费型体验会减少"
             "short" -> "更轻松，但探索范围更小"
+            "cinema" -> "更有记忆点，但真实取景关系需要来源核验"
             "surprise" -> "更有新鲜感，但需要出发前再确认营业"
             else -> "最稳妥，但惊喜感适中"
         }

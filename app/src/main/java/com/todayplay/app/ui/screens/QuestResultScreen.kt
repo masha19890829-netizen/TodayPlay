@@ -152,18 +152,29 @@ fun QuestResultScreen(
                     ResultHero(quest, copy)
                 }
                 if (itineraryPlan != null) {
-                    item {
-                        FadeItem(visibleCount >= 1) {
-                            PersonalFitCard(record = record, locale = locale)
+                    if (record.isTimeCinemaRoute()) {
+                        item {
+                            FadeItem(visibleCount >= 1) {
+                                TimeCinemaTicketCard(
+                                    record = record,
+                                    locale = locale,
+                                    onOpenMap = { stop -> MapNavigator.openInAmap(context, stop.navigationAction, systemCopy) },
+                                )
+                            }
                         }
                     }
                     item {
                         FadeItem(visibleCount >= 2) {
-                            RouteTuneCard(onTuneRoute = onTuneRoute)
+                            PersonalFitCard(record = record, locale = locale)
                         }
                     }
                     item {
                         FadeItem(visibleCount >= 3) {
+                            RouteTuneCard(onTuneRoute = onTuneRoute)
+                        }
+                    }
+                    item {
+                        FadeItem(visibleCount >= 4) {
                             RouteVisualPreviewCard(
                                 record = record,
                                 locale = locale,
@@ -172,7 +183,7 @@ fun QuestResultScreen(
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 4) {
+                        FadeItem(visibleCount >= 5) {
                             RouteExecutionCard(
                                 record = record,
                                 locale = locale,
@@ -189,23 +200,23 @@ fun QuestResultScreen(
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 5) {
+                        FadeItem(visibleCount >= 6) {
                             MissionSummaryCard(quest = quest, progress = progress, completed = resolvedSteps, total = totalSteps, copy = copy)
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 6) {
+                        FadeItem(visibleCount >= 7) {
                             ItineraryOverviewCard(record, copy)
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 7) {
+                        FadeItem(visibleCount >= 8) {
                             RoutePlaybookCard(record, locale)
                         }
                     }
                     itineraryPlan.stops.forEach { stop ->
                         item {
-                            FadeItem(visibleCount >= 8) {
+                            FadeItem(visibleCount >= 9) {
                                 RouteStopCard(
                                     stop = stop,
                                     status = progressState.statusFor(stop.checkInTask.taskId),
@@ -334,6 +345,397 @@ private fun FadeItem(visible: Boolean, content: @Composable () -> Unit) {
     ) {
         content()
     }
+}
+
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+private fun TimeCinemaTicketCard(
+    record: QuestRecord,
+    locale: TodayPlayLocale,
+    onOpenMap: (RouteStop) -> Unit,
+) {
+    val plan = record.quest.itineraryPlan ?: return
+    val copy = timeCinemaStrings(locale)
+    val currentStop = currentRunnableStop(record) ?: plan.stops.firstOrNull() ?: return
+    val sourceLabel = if (plan.stops.any { it.poi.requiresOfficialVerification || it.poi.contentSource.isMock }) {
+        copy.sampleSource
+    } else {
+        copy.verifiedSource
+    }
+    val transition = rememberInfiniteTransition(label = "time-cinema-ticket")
+    val glow by transition.animateFloat(
+        initialValue = 0.18f,
+        targetValue = 0.34f,
+        animationSpec = infiniteRepeatable(tween(2600), RepeatMode.Reverse),
+        label = "time-cinema-ticket-glow",
+    )
+
+    SoftCard(padding = 0.dp) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(22.dp))
+                .background(TicketBeige.copy(alpha = 0.84f))
+                .border(1.dp, RoseGold.copy(alpha = 0.45f), RoundedCornerShape(22.dp)),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(172.dp)
+                    .background(BlackCherry),
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.romantic_ticket),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            alpha = 0.64f
+                            scaleX = 1.03f
+                            scaleY = 1.03f
+                        },
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    BlackCherry.copy(alpha = 0.18f),
+                                    BlackCherry.copy(alpha = 0.72f),
+                                ),
+                            ),
+                        ),
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(18.dp),
+                    verticalArrangement = Arrangement.Bottom,
+                ) {
+                    Text(copy.kicker, color = RoseGold, style = MaterialTheme.typography.labelSmall)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        plan.title,
+                        color = GalleryWhite,
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 26.sp,
+                        lineHeight = 31.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        TimeCinemaMetaChip(plan.city)
+                        TimeCinemaMetaChip(plan.estimatedDuration)
+                        TimeCinemaMetaChip(compactTicketMeta(plan.estimatedCost))
+                        TimeCinemaMetaChip(sourceLabel)
+                    }
+                }
+            }
+
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(GalleryWhite.copy(alpha = 0.62f))
+                        .border(1.dp, LineBeige, RoundedCornerShape(18.dp))
+                        .padding(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(copy.boardTitle, color = CherryPressed, style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            copy.boardLine,
+                            color = InkBlack,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    KawaiiChip(text = copy.currentMapAction, selected = true, onClick = { onOpenMap(currentStop) })
+                }
+
+                TimeCinemaRouteMap(
+                    plan = plan,
+                    currentStop = currentStop,
+                    record = record,
+                    glow = glow,
+                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(GalleryWhite.copy(alpha = 0.62f))
+                        .border(1.dp, LineBeige, RoundedCornerShape(18.dp))
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    plan.stops.take(3).forEachIndexed { index, stop ->
+                        TimeCinemaSceneRow(
+                            scene = copy.sceneLabels.getOrElse(index) { "Scene ${index + 1}" },
+                            stop = stop,
+                            active = stop.stopId == currentStop.stopId,
+                        )
+                    }
+                }
+
+                Text(
+                    copy.sourceWarning,
+                    color = WarmGray,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimeCinemaMetaChip(text: String) {
+    Text(
+        text = text,
+        color = GalleryWhite,
+        style = MaterialTheme.typography.labelSmall,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(GalleryWhite.copy(alpha = 0.16f))
+            .border(1.dp, GalleryWhite.copy(alpha = 0.24f), RoundedCornerShape(999.dp))
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+    )
+}
+
+@Composable
+private fun TimeCinemaRouteMap(
+    plan: ItineraryPlan,
+    currentStop: RouteStop,
+    record: QuestRecord,
+    glow: Float,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(190.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(WarmCream.copy(alpha = 0.92f))
+            .border(1.dp, RoseGold.copy(alpha = 0.42f), RoundedCornerShape(20.dp)),
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val roadColor = LineBeige.copy(alpha = 0.52f)
+            repeat(5) { index ->
+                val y = size.height * (0.18f + index * 0.15f)
+                drawLine(
+                    color = roadColor,
+                    start = Offset(size.width * 0.06f, y),
+                    end = Offset(size.width * 0.94f, y + if (index % 2 == 0) 18f else -10f),
+                    strokeWidth = 2f,
+                    cap = StrokeCap.Round,
+                )
+            }
+            repeat(4) { index ->
+                val x = size.width * (0.18f + index * 0.2f)
+                drawLine(
+                    color = roadColor.copy(alpha = 0.34f),
+                    start = Offset(x, size.height * 0.08f),
+                    end = Offset(x + if (index % 2 == 0) 36f else -24f, size.height * 0.92f),
+                    strokeWidth = 2f,
+                    cap = StrokeCap.Round,
+                )
+            }
+            val points = listOf(
+                Offset(size.width * 0.13f, size.height * 0.70f),
+                Offset(size.width * 0.36f, size.height * 0.34f),
+                Offset(size.width * 0.62f, size.height * 0.55f),
+                Offset(size.width * 0.86f, size.height * 0.28f),
+            ).take(plan.stops.size.coerceIn(1, 4))
+            points.zipWithNext().forEach { (start, end) ->
+                drawLine(
+                    color = BlackCherry.copy(alpha = 0.14f),
+                    start = start,
+                    end = end,
+                    strokeWidth = 14f,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = CherryPressed.copy(alpha = 0.70f),
+                    start = start,
+                    end = end,
+                    strokeWidth = 5f,
+                    cap = StrokeCap.Round,
+                )
+            }
+            points.forEachIndexed { index, point ->
+                val stop = plan.stops.getOrNull(index)
+                val done = stop != null && record.progress.statusFor(stop.checkInTask.taskId).isResolved()
+                val active = stop?.stopId == currentStop.stopId
+                if (active) {
+                    drawCircle(
+                        color = CherryPressed.copy(alpha = glow),
+                        radius = 26f,
+                        center = point,
+                    )
+                }
+                drawCircle(
+                    color = when {
+                        active -> BlackCherry
+                        done -> CherryPressed
+                        else -> GalleryWhite
+                    },
+                    radius = if (active) 18f else 14f,
+                    center = point,
+                )
+                drawCircle(
+                    color = if (active || done) GalleryWhite else RoseGold,
+                    radius = 5f,
+                    center = point,
+                )
+            }
+        }
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp),
+        ) {
+            Text("MAP ROUTE", color = CherryPressed, style = MaterialTheme.typography.labelSmall)
+            Text(
+                plan.city,
+                color = InkBlack,
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            plan.bestPhotoTime,
+            color = WarmGray,
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun TimeCinemaSceneRow(
+    scene: String,
+    stop: RouteStop,
+    active: Boolean,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Box(
+            modifier = Modifier
+                .width(74.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (active) CherryPressed else TicketBeige)
+                .border(1.dp, if (active) CherryPressed else RoseGold.copy(alpha = 0.42f), RoundedCornerShape(12.dp))
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = scene,
+                color = if (active) GalleryWhite else CherryPressed,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                stop.poi.name,
+                color = InkBlack,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                stop.checkInTask.title,
+                color = WarmGray,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            stop.startTimeHint,
+            color = RoseGold,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+private data class TimeCinemaStrings(
+    val kicker: String,
+    val boardTitle: String,
+    val boardLine: String,
+    val currentMapAction: String,
+    val sampleSource: String,
+    val verifiedSource: String,
+    val sourceWarning: String,
+    val sceneLabels: List<String>,
+)
+
+private fun timeCinemaStrings(locale: TodayPlayLocale): TimeCinemaStrings {
+    return when (locale) {
+        TodayPlayLocale.SimplifiedChinese,
+        TodayPlayLocale.TraditionalChinese -> TimeCinemaStrings(
+            kicker = "TODAY WAS PLAYED / 今日电影票",
+            boardTitle = "场记板",
+            boardLine = "先看地图线路，再按三幕完成今天；来源状态会单独标注。",
+            currentMapAction = "导航当前镜头",
+            sampleSource = "电影感灵感",
+            verifiedSource = "已核验来源",
+            sourceWarning = "当前内容为项目本地样例或待核验电影感地点；没有授权时不使用剧照、海报、片名 Logo，也不声称官方取景地。",
+            sceneLabels = listOf("Act 01", "Act 02", "Act 03"),
+        )
+        else -> TimeCinemaStrings(
+            kicker = "TODAY WAS PLAYED / private scene",
+            boardTitle = "Clapper board",
+            boardLine = "Read the route map first, then play today in three scenes. This is a cinematic route, not an official filming claim.",
+            currentMapAction = "Navigate scene",
+            sampleSource = "Cinematic vibe",
+            verifiedSource = "Verified source",
+            sourceWarning = "Current content is a local sample or pending-verification cinematic place. No stills, posters, title logos, or official filming claims are used without authorization.",
+            sceneLabels = listOf("Act 01", "Act 02", "Act 03"),
+        )
+    }
+}
+
+private fun compactTicketMeta(value: String): String {
+    return value
+        .substringBefore("，")
+        .substringBefore(",")
+        .trim()
+        .takeIf { it.isNotBlank() }
+        ?: value.trim().take(16)
+}
+
+private fun QuestRecord.isTimeCinemaRoute(): Boolean {
+    val plan = quest.itineraryPlan
+    return quest.tags.any { tag ->
+        tag.contains("电影感") || tag.contains("cinema", ignoreCase = true)
+    } || plan?.title?.contains("时光电影") == true ||
+        plan?.stops.orEmpty().any { stop ->
+            stop.poi.tags.any { tag -> tag.contains("电影感") || tag.contains("cinema", ignoreCase = true) } ||
+                stop.poi.globalCategory.contains("cinema", ignoreCase = true)
+        }
 }
 
 @Composable

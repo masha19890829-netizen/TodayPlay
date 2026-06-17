@@ -376,6 +376,11 @@ class LocalItineraryGenerator(
                 if (category.contains("indoor") || category.contains("museum") || category.contains("library") || category.contains("cafe")) score += 28.0
                 if (category.contains("park") || category.contains("walk") || category.contains("night")) score -= 8.0
             }
+            "cinema" -> {
+                if (category.contains("cinema") || category.contains("film") || category.contains("movie") || category.contains("photo") || category.contains("night") || category.contains("citywalk")) score += 30.0
+                if (category.contains("bookstore") || category.contains("cafe") || category.contains("indoor")) score += 10.0
+                if (category.contains("family") || category.contains("lively_food")) score -= 6.0
+            }
             "surprise" -> {
                 if (category.contains("surprise") || category.contains("lane") || category.contains("photo") || category.contains("citywalk")) score += 18.0
             }
@@ -411,6 +416,11 @@ class LocalItineraryGenerator(
         }
         if (intentText.hasAny("小惊喜", "新鲜", "surprise") && poi.matchesAny("小惊喜", "探店", "surprise")) {
             score += 16.0
+        }
+        if (intentText.hasAny("电影", "电影感", "取景", "名场面", "cinema", "film", "movie") &&
+            poi.matchesAny("电影感", "取景", "胶片", "名场面", "cinema", "film", "movie", "photo", "night")
+        ) {
+            score += 24.0
         }
         if ((input.time.contains("30") || input.time.contains("90")) && poi.estimatedStayMinutes <= 60) {
             score += 8.0

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -143,11 +144,15 @@ fun SplashScreen(onFinished: () -> Unit) {
                 )
                 Spacer(Modifier.height(14.dp))
                 Text(
-                    text = strings.splashTagline,
+                    text = balancedSplashTagline(strings.splashTagline),
                     color = WarmGray,
                     style = MaterialTheme.typography.bodyLarge,
+                    lineHeight = 28.sp,
+                    maxLines = 2,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.graphicsLayer { alpha = introAlpha },
+                    modifier = Modifier
+                        .widthIn(max = 620.dp)
+                        .graphicsLayer { alpha = introAlpha },
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -171,6 +176,14 @@ fun SplashScreen(onFinished: () -> Unit) {
                 )
             }
         }
+    }
+}
+
+private fun balancedSplashTagline(tagline: String): String {
+    return when (tagline) {
+        "把普通日子，剪成一小段只属于你们的电影。" -> "把普通日子，剪成\n只属于你们的一小段电影。"
+        "把普通日子，剪成一小段只屬於你們的電影。" -> "把普通日子，剪成\n只屬於你們的一小段電影。"
+        else -> tagline
     }
 }
 
