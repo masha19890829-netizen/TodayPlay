@@ -194,7 +194,7 @@ private fun SplashTaglineText(
     val lines = stableSplashTaglineLines(tagline)
     if (lines.size > 1) {
         Column(
-            modifier = modifier.widthIn(max = 360.dp),
+            modifier = modifier.widthIn(max = 300.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
@@ -202,8 +202,8 @@ private fun SplashTaglineText(
                 Text(
                     text = line,
                     color = WarmGray,
-                    style = MaterialTheme.typography.bodyLarge,
-                    lineHeight = 24.sp,
+                    style = if (lines.size >= 3) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
+                    lineHeight = if (lines.size >= 3) 22.sp else 24.sp,
                     maxLines = 1,
                     softWrap = false,
                     overflow = TextOverflow.Clip,
@@ -228,8 +228,8 @@ private fun SplashTaglineText(
 
 private fun stableSplashTaglineLines(tagline: String): List<String> {
     return when (tagline) {
-        SimplifiedSplashTagline -> listOf(SimplifiedSplashLine1, SimplifiedSplashLine2)
-        TraditionalSplashTagline -> listOf(TraditionalSplashLine1, TraditionalSplashLine2)
+        SimplifiedSplashTagline -> listOf(SimplifiedSplashLine1, SimplifiedSplashLine2, SimplifiedSplashLine3)
+        TraditionalSplashTagline -> listOf(TraditionalSplashLine1, TraditionalSplashLine2, TraditionalSplashLine3)
         else -> tagline.split("\n").map { it.trim() }.filter { it.isNotEmpty() }.ifEmpty { listOf(tagline) }
     }
 }
@@ -237,15 +237,19 @@ private fun stableSplashTaglineLines(tagline: String): List<String> {
 private const val SimplifiedSplashTagline =
     "\u628a\u666e\u901a\u65e5\u5b50\uff0c\u526a\u6210\u4e00\u5c0f\u6bb5\u53ea\u5c5e\u4e8e\u4f60\u4eec\u7684\u7535\u5f71\u3002"
 private const val SimplifiedSplashLine1 =
-    "\u628a\u666e\u901a\u65e5\u5b50\uff0c\u526a\u6210"
+    "\u628a\u666e\u901a\u65e5\u5b50\uff0c"
 private const val SimplifiedSplashLine2 =
-    "\u53ea\u5c5e\u4e8e\u4f60\u4eec\u7684\u4e00\u5c0f\u6bb5\u7535\u5f71\u3002"
+    "\u526a\u6210\u4e00\u5c0f\u6bb5"
+private const val SimplifiedSplashLine3 =
+    "\u53ea\u5c5e\u4e8e\u4f60\u4eec\u7684\u7535\u5f71\u3002"
 private const val TraditionalSplashTagline =
     "\u628a\u666e\u901a\u65e5\u5b50\uff0c\u526a\u6210\u4e00\u5c0f\u6bb5\u53ea\u5c6c\u65bc\u4f60\u5011\u7684\u96fb\u5f71\u3002"
 private const val TraditionalSplashLine1 =
-    "\u628a\u666e\u901a\u65e5\u5b50\uff0c\u526a\u6210"
+    "\u628a\u666e\u901a\u65e5\u5b50\uff0c"
 private const val TraditionalSplashLine2 =
-    "\u53ea\u5c6c\u65bc\u4f60\u5011\u7684\u4e00\u5c0f\u6bb5\u96fb\u5f71\u3002"
+    "\u526a\u6210\u4e00\u5c0f\u6bb5"
+private const val TraditionalSplashLine3 =
+    "\u53ea\u5c6c\u65bc\u4f60\u5011\u7684\u96fb\u5f71\u3002"
 
 @Composable
 private fun SplashStampMark(

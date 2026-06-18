@@ -44,11 +44,14 @@ def main() -> int:
             "Splash tagline fixed line layout",
             "SplashTaglineText(" in splash_text
             and "stableSplashTaglineLines" in splash_text
+            and "SimplifiedSplashLine3" in splash_text
+            and "TraditionalSplashLine3" in splash_text
             and "softWrap = false" in splash_text
             and "maxLines = 1" in splash_text
-            and "widthIn(max = 360.dp)" in splash_text,
+            and "widthIn(max = 300.dp)" in splash_text
+            and "if (lines.size >= 3)" in splash_text,
             str(splash),
-            "Opening subtitle should use fixed two-line CJK layout instead of allowing a single Chinese character to fall onto its own line.",
+            "Opening subtitle should use fixed short CJK lines instead of allowing a single Chinese character to fall onto its own line.",
         ),
         (
             "Home screen width classes",
@@ -112,6 +115,20 @@ def main() -> int:
             and result_text.count("maxLines = 2") >= 3,
             str(result),
             "Route titles and POI names should clamp safely for multilingual place names.",
+        ),
+        (
+            "Chat-first personalization text guards",
+            "RecentIntentStrip" in home_text
+            and "card.tradeoff" in home_text
+            and "card.sourceNote" in home_text
+            and "compact: Boolean" in home_text
+            and "KawaiiChip(text = \"设置\", selected = false, onClick = onSettings)" in home_text
+            and "PersonalFitCardV2" in result_text
+            and "plan.personalizationReasons" in result_text
+            and "currentStrategy" in result_text
+            and result_text.count("overflow = TextOverflow.Ellipsis") >= 12,
+            str(result),
+            "Candidate cards, recent intents, result reasons, and tune labels should clamp safely on small phones and foldable cover screens.",
         ),
         (
             "Shop responsive payment layout",

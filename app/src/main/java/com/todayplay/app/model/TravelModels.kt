@@ -141,6 +141,11 @@ data class ItineraryPlan(
     val complianceNote: ContentComplianceNote,
     val marketCoverageNote: String = "Local mock data only. Production coverage requires official map, merchant, and backend content providers.",
     val candidateRouteCount: Int = 1,
+    val personalizationStrategy: String = "",
+    val personalizationSignals: List<String> = emptyList(),
+    val personalizationReasons: List<String> = emptyList(),
+    val personalizationTradeoff: String = "",
+    val personalizationSourceNote: String = "",
 ) {
     val totalRewardPoints: Int
         get() = stops.sumOf { it.checkInTask.rewardPoints }

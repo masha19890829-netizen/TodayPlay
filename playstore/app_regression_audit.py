@@ -86,9 +86,9 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         })
 
     add(
-        "V0.9.68 director motion and state retention version metadata",
-        'versionName = "0.9.68"' in build_gradle and "versionCode = 85" in build_gradle,
-        "expected versionName=0.9.68 and versionCode=85",
+        "V0.9.69 personalization evidence and adaptive text version metadata",
+        'versionName = "0.9.69"' in build_gradle and "versionCode = 86" in build_gradle,
+        "expected versionName=0.9.69 and versionCode=86",
         "Keep every external-test APK versioned independently so testers never install an ambiguous build.",
     )
 
@@ -134,6 +134,46 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         has_all(generator + ai_generator + read_text(app_root / "data" / "TravelContentRepository.kt"), personalized_route_tokens),
         f"tokens={personalized_route_tokens}",
         "Keep AI and local fallback generation based on a same-city candidate pool plus input scoring, not a fixed first-N local route.",
+    )
+
+    v0969_personalization_tokens = [
+        "personalizationStrategy",
+        "personalizationSignals",
+        "personalizationReasons",
+        "personalizationTradeoff",
+        "personalizationSourceNote",
+        "TP_INTENT_STRATEGY_LABEL",
+        "TP_INTENT_SIGNALS",
+        "TP_INTENT_REASON",
+        "TP_INTENT_TRADEOFF",
+        "TP_INTENT_SOURCE",
+        "strategyLabel",
+        "evidenceSignals",
+        "safePersonalizationStrategyFor",
+        "safePersonalizationSignalsFor",
+        "safePersonalizationTradeoffFor",
+        "safePersonalizationSourceNote",
+    ]
+    v0969_ui_tokens = [
+        "RecentIntentStrip",
+        "home_recent_intent",
+        "PersonalFitCardV2",
+        "当前版本：$currentStrategy",
+        "按这版生成",
+        "card.tradeoff",
+        "card.sourceNote",
+        "stableSplashTaglineLines",
+        "SimplifiedSplashLine3",
+        "widthIn(max = 300.dp)",
+        "compact: Boolean",
+        "KawaiiChip(text = \"设置\", selected = false, onClick = onSettings)",
+    ]
+    add(
+        "V0.9.69 candidate evidence, route inheritance, and orphan-text guard",
+        has_all(generator + route_interpreter + store, v0969_personalization_tokens)
+        and has_all(home_screen + result_screen + main_activity + splash_screen, v0969_ui_tokens),
+        f"personalizationTokens={v0969_personalization_tokens}; uiTokens={v0969_ui_tokens}",
+        "Keep route candidates and result pages visibly different by intent, preserve selected-card strategy into the result page, expose recent local intents, and prevent splash subtitles from leaving a single Chinese character alone.",
     )
 
     ai_boundary_tokens = [
@@ -587,11 +627,14 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         "stableSplashTaglineLines",
         "SimplifiedSplashLine1",
         "SimplifiedSplashLine2",
+        "SimplifiedSplashLine3",
         "TraditionalSplashLine1",
         "TraditionalSplashLine2",
+        "TraditionalSplashLine3",
         "softWrap = false",
         "maxLines = 1",
-        "widthIn(max = 360.dp)",
+        "widthIn(max = 300.dp)",
+        "if (lines.size >= 3)",
     ]
     add(
         "Splash tagline avoids orphan Chinese characters",

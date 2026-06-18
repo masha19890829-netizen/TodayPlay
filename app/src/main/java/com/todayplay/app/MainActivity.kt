@@ -191,6 +191,8 @@ private fun TodayPlayApp() {
             onGoogleSignIn = ::signInWithGoogle,
             onLocalTesterSignIn = ::continueAsLocalTester,
             onSignOut = ::signOutAccount,
+            recentRecords = viewModel.history.take(3),
+            onReplayRecent = { record -> startGeneration(record.toReplayInput(selectedLocale.code), "home_recent_intent") },
         )
         AppScreen.QuickStart -> QuickStartScreen(
             onBack = { screen = AppScreen.Home },

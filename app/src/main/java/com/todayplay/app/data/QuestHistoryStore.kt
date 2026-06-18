@@ -205,6 +205,11 @@ class QuestHistoryStore(context: Context) {
             .put("complianceNote", complianceNote.toJson())
             .put("marketCoverageNote", marketCoverageNote)
             .put("candidateRouteCount", candidateRouteCount)
+            .put("personalizationStrategy", personalizationStrategy)
+            .put("personalizationSignals", personalizationSignals.toStringJsonArray())
+            .put("personalizationReasons", personalizationReasons.toStringJsonArray())
+            .put("personalizationTradeoff", personalizationTradeoff)
+            .put("personalizationSourceNote", personalizationSourceNote)
     }
 
     private fun JSONObject.toItineraryPlan(): ItineraryPlan {
@@ -226,6 +231,11 @@ class QuestHistoryStore(context: Context) {
             complianceNote = getJSONObject("complianceNote").toContentComplianceNote(),
             marketCoverageNote = optString("marketCoverageNote", "Local mock data only. Production coverage requires official map, merchant, and backend content providers."),
             candidateRouteCount = optInt("candidateRouteCount", 1),
+            personalizationStrategy = optString("personalizationStrategy"),
+            personalizationSignals = optJSONArray("personalizationSignals").toStringList(),
+            personalizationReasons = optJSONArray("personalizationReasons").toStringList(),
+            personalizationTradeoff = optString("personalizationTradeoff"),
+            personalizationSourceNote = optString("personalizationSourceNote"),
         )
     }
 

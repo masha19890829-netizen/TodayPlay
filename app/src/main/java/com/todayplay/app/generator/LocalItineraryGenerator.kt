@@ -59,6 +59,16 @@ class LocalItineraryGenerator(
         val planType = copy.safePlanTypeFor(routeGroupPreference)
         val intentTitle = input.intentMarker("TP_INTENT_TITLE")
         val intentSummary = input.intentMarker("TP_INTENT_SUMMARY")
+        val intentStrategy = input.intentMarker("TP_INTENT_STRATEGY_LABEL")
+            ?: input.intentMarker("TP_INTENT_STRATEGY")?.let { copy.safePersonalizationStrategyFor(input, routeGroupPreference) }
+            ?: copy.safePersonalizationStrategyFor(input, routeGroupPreference)
+        val intentSignals = input.intentMarkerList("TP_INTENT_SIGNALS")
+            .ifEmpty { copy.safePersonalizationSignalsFor(input, routeGroupPreference, candidates.size) }
+        val intentReason = input.intentMarker("TP_INTENT_REASON")
+        val intentTradeoff = input.intentMarker("TP_INTENT_TRADEOFF")
+            ?: copy.safePersonalizationTradeoffFor(input)
+        val intentSourceNote = input.intentMarker("TP_INTENT_SOURCE")
+            ?: copy.safePersonalizationSourceNote
         val candidateStops = rankedCandidates.take(12).mapIndexed { index, poi ->
             copy.localizePoi(poi).toRouteStop(
                 questId = questId,
@@ -94,6 +104,15 @@ class LocalItineraryGenerator(
                 rawNote = contentResult.coverageNote,
             ),
             candidateRouteCount = candidates.size,
+            personalizationStrategy = intentStrategy,
+            personalizationSignals = intentSignals,
+            personalizationReasons = buildPersonalizationReasons(
+                intentReason = intentReason,
+                routeSummary = intentSummary ?: copy.safeRouteSummaryFor(routeGroupPreference, selectedPois),
+                stops = stops,
+            ),
+            personalizationTradeoff = intentTradeoff,
+            personalizationSourceNote = intentSourceNote,
         )
         return ItineraryDraft(
             plan = plan,
@@ -315,6 +334,31 @@ class LocalItineraryGenerator(
             groupPreference.mergedTimeWindow.contains("一整天") || groupPreference.mergedTimeWindow.contains("一天") -> 4
             else -> 3
         }
+    }
+
+    private fun QuestInput.intentMarkerList(key: String): List<String> {
+        return intentMarker(key)
+            ?.split("|", "/", "、")
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            ?.distinct()
+            .orEmpty()
+    }
+
+    private fun buildPersonalizationReasons(
+        intentReason: String?,
+        routeSummary: String,
+        stops: List<RouteStop>,
+    ): List<String> {
+        return buildList {
+            intentReason?.takeIf { it.isNotBlank() }?.let { add(it) }
+            add(routeSummary)
+            stops.take(2).forEach { stop -> add(stop.whyForGroup) }
+        }
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .take(3)
     }
 
     private fun rankCandidatesForInput(
@@ -1608,6 +1652,90 @@ private class ItineraryCopy(private val locale: RouteLocale) {
         if (primary.timeWindow.contains("30") || primary.timeWindow.contains("90")) add(localizedShortTimeNote())
         if (companion.interests.any { it.contains("拍照") || it.contains("鎷") }) add(localizedPhotoBalanceNote())
     }
+
+    fun safePersonalizationStrategyFor(input: QuestInput, groupPreference: GroupPreference): String {
+        val text = listOfNotNull(
+            input.note,
+            input.vibe,
+            input.budget,
+            input.time,
+            input.transportMode,
+            input.moods.joinToString(" "),
+        ).joinToString(" ")
+        return when {
+            text.contains("电影") || text.contains("名场面") || text.contains("cinema", ignoreCase = true) ->
+                localizedText("时光电影", "時光電影", "Cinematic route", "映画のようなルート", "영화 같은 루트", "Ruta de cine")
+            text.contains("安静") || text.contains("quiet", ignoreCase = true) ->
+                localizedText("更安静", "更安靜", "Quieter", "静かめ", "더 조용하게", "Mas tranquilo")
+            text.contains("少走") || text.contains("不累") || text.contains("less", ignoreCase = true) ->
+                localizedText("少走路", "少走路", "Less walking", "歩き少なめ", "덜 걷기", "Caminar menos")
+            text.contains("低预算") || text.contains("100") || text.contains("50") ->
+                localizedText("更省钱", "更省錢", "Lower budget", "予算控えめ", "예산 절약", "Mas economico")
+            text.contains("室内") || text.contains("下雨") || text.contains("indoor", ignoreCase = true) ->
+                localizedText("室内优先", "室內優先", "Indoor first", "屋内優先", "실내 우선", "Interior primero")
+            text.contains("热闹") || text.contains("朋友") || text.contains("lively", ignoreCase = true) ->
+                localizedText("更热闹", "更熱鬧", "Livelier", "にぎやか", "더 활기차게", "Mas animado")
+            isCouple(groupPreference.relationshipType) ->
+                localizedText("心动路线", "心動路線", "Date-fit", "デート向き", "데이트 맞춤", "Cita suave")
+            isFriends(groupPreference.relationshipType) ->
+                localizedText("今晚组局", "今晚組局", "Friend plan", "友達プラン", "친구 플랜", "Plan con amigos")
+            else -> localizedText("最贴合", "最貼合", "Best fit", "最適", "가장 적합", "Mejor ajuste")
+        }
+    }
+
+    fun safePersonalizationSignalsFor(
+        input: QuestInput,
+        groupPreference: GroupPreference,
+        candidateCount: Int,
+    ): List<String> {
+        return buildList {
+            input.city?.takeIf { it.isNotBlank() }?.let { add(it) }
+            groupPreference.relationshipType.takeIf { it.isNotBlank() }?.let { add(it) }
+            groupPreference.mergedTimeWindow.takeIf { it.isNotBlank() }?.let { add(it) }
+            groupPreference.mergedBudget.takeIf { it.isNotBlank() }?.let { add(it) }
+            groupPreference.mergedTransportMode.takeIf { it.isNotBlank() }?.let { add(it) }
+            if (candidateCount > 0) {
+                add(
+                    localizedText(
+                        "同城候选 ${candidateCount} 个",
+                        "同城候選 ${candidateCount} 個",
+                        "${candidateCount} same-city options",
+                        "同じ街の候補 ${candidateCount} 件",
+                        "같은 도시 후보 ${candidateCount}개",
+                        "${candidateCount} opciones de la misma ciudad",
+                    ),
+                )
+            }
+        }
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .take(6)
+    }
+
+    fun safePersonalizationTradeoffFor(input: QuestInput): String {
+        val text = listOfNotNull(input.note, input.budget, input.time, input.moods.joinToString(" ")).joinToString(" ")
+        return when {
+            text.contains("少走") || text.contains("不累") ->
+                localizedText("取舍：优先近距离和可坐下，少放高强度打卡点。", "取捨：優先近距離和可坐下，少放高強度打卡點。", "Tradeoff: closer stops and seated time win over intense check-ins.", "近さと座れる時間を優先します。", "가까운 동선과 앉을 시간을 우선합니다.", "Prioriza distancias cortas y momentos sentados.")
+            text.contains("低预算") || text.contains("100") || text.contains("50") ->
+                localizedText("取舍：优先免费/低消费点，减少需要门票或长时间排队的选择。", "取捨：優先免費/低消費點，減少需要門票或長時間排隊的選擇。", "Tradeoff: low-cost stops over ticketed or queue-heavy places.", "低予算の場所を優先します。", "저예산 장소를 우선합니다.", "Prioriza bajo coste sobre entradas y filas.")
+            text.contains("安静") ->
+                localizedText("取舍：牺牲一点热闹氛围，换更适合聊天和恢复的节奏。", "取捨：犧牲一點熱鬧氛圍，換更適合聊天和恢復的節奏。", "Tradeoff: less buzz, more room to talk and reset.", "にぎやかさより会話を優先します。", "활기보다 대화 여유를 우선합니다.", "Menos ruido, mas espacio para conversar.")
+            else ->
+                localizedText("取舍：先保证同城、时间和关系场景匹配，再做风格变化。", "取捨：先保證同城、時間和關係場景匹配，再做風格變化。", "Tradeoff: same-city fit, timing, and relationship come before style variation.", "同じ街・時間・関係性を先に合わせます。", "도시, 시간, 관계 맥락을 먼저 맞춥니다.", "Primero ciudad, tiempo y relacion; luego estilo.")
+        }
+    }
+
+    val safePersonalizationSourceNote: String
+        get() = localizedText(
+            "来源：本地样例 POI + 个性化排序；不伪造真实热度、评分或营业状态。",
+            "來源：本地樣例 POI + 個性化排序；不偽造真實熱度、評分或營業狀態。",
+            "Source: local sample POIs plus personalized ranking; no fake heat, ratings, or opening status.",
+            "出典：ローカルサンプル地点と個別ランキング。人気度や営業状態は捏造しません。",
+            "출처: 로컬 샘플 장소와 개인화 정렬. 실제 인기, 평점, 영업 상태를 꾸미지 않습니다.",
+            "Fuente: POI locales de muestra y ranking personalizado; sin calor, notas ni horarios falsos.",
+        )
 
     fun safePlanTypeFor(groupPreference: GroupPreference): String {
         return when {

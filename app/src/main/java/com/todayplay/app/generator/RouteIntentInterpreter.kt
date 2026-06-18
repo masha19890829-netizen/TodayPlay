@@ -28,6 +28,8 @@ data class CandidateRouteCard(
     val title: String,
     val subtitle: String,
     val strategy: String,
+    val strategyLabel: String,
+    val evidenceSignals: List<String>,
     val stopPreview: List<String>,
     val estimatedDuration: String,
     val budgetLabel: String,
@@ -176,6 +178,8 @@ object RouteIntentInterpreter {
                 title = resolvedTitle,
                 subtitle = spec.subtitle,
                 strategy = spec.id,
+                strategyLabel = spec.label,
+                evidenceSignals = intent.evidenceSignalsFor(spec.id),
                 stopPreview = stopPreview,
                 estimatedDuration = durationFor(intent, spec.id),
                 budgetLabel = budgetFor(intent, spec.id),
@@ -203,6 +207,11 @@ object RouteIntentInterpreter {
             "TP_INTENT_TITLE=$title",
             "TP_INTENT_SUMMARY=$summary",
             "TP_INTENT_STRATEGY=$strategy",
+            "TP_INTENT_STRATEGY_LABEL=${labelForStrategy(strategy)}",
+            "TP_INTENT_SIGNALS=${evidenceSignalsFor(strategy).joinToString("|")}",
+            "TP_INTENT_REASON=${whyFor(this, strategy)}",
+            "TP_INTENT_TRADEOFF=${tradeoffFor(strategy)}",
+            "TP_INTENT_SOURCE=${sourceNoteFor(strategy)}",
             "TP_INTENT_GOAL=$primaryGoal",
             "TP_INTENT_INDOOR=$indoorPreference",
             "TP_INTENT_CINEMA=${if (strategy == "cinema") "true" else "false"}",
@@ -287,6 +296,52 @@ object RouteIntentInterpreter {
             "cinema" -> "更有记忆点，但真实取景关系需要来源核验"
             "surprise" -> "更有新鲜感，但需要出发前再确认营业"
             else -> "最稳妥，但惊喜感适中"
+        }
+    }
+
+    private fun sourceNoteFor(strategy: String): String {
+        return if (strategy == "cinema") {
+            "电影感样例路线；真实取景地关系需来源核验，不代表官方授权"
+        } else {
+            "本地样例地点 + AI意图结构；出发前需确认营业时间"
+        }
+    }
+
+    private fun RouteIntent.evidenceSignalsFor(strategy: String): List<String> {
+        val base = listOf(
+            city,
+            relationship,
+            durationFor(this, strategy),
+            budgetFor(this, strategy),
+            mobilityFor(this, strategy),
+        )
+        val extras = when (strategy) {
+            "quiet" -> listOf("降低社交压力")
+            "lively" -> listOf("朋友局更有氛围")
+            "budget" -> listOf("优先低消费")
+            "short" -> listOf("缩小移动半径")
+            "indoor" -> listOf("室内/雨天优先")
+            "cinema" -> listOf("电影感镜头")
+            else -> listOf(primaryGoal)
+        }
+        return (base + extras)
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .take(7)
+    }
+
+    private fun labelForStrategy(strategy: String): String {
+        return when (strategy) {
+            "fit" -> "最贴合"
+            "quiet" -> "更安静"
+            "lively" -> "更热闹"
+            "budget" -> "更省钱"
+            "short" -> "少走路"
+            "surprise" -> "小惊喜"
+            "cinema" -> "时光电影"
+            "indoor" -> "室内优先"
+            else -> strategy
         }
     }
 

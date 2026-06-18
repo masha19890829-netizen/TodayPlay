@@ -167,12 +167,12 @@ fun QuestResultScreen(
                     }
                     item {
                         FadeItem(visibleCount >= 2) {
-                            PersonalFitCard(record = record, locale = locale)
+                            PersonalFitCardV2(record = record, locale = locale)
                         }
                     }
                     item {
                         FadeItem(visibleCount >= 3) {
-                            RouteTuneCard(onTuneRoute = onTuneRoute)
+                            RouteTuneCard(currentStrategy = itineraryPlan.personalizationStrategy, onTuneRoute = onTuneRoute)
                         }
                     }
                     item {
@@ -865,6 +865,97 @@ private fun QuestRecord.isTimeCinemaRoute(): Boolean {
         }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PersonalFitCardV2(record: QuestRecord, locale: TodayPlayLocale) {
+    val plan = record.quest.itineraryPlan ?: return
+    val title = when (locale) {
+        TodayPlayLocale.SimplifiedChinese,
+        TodayPlayLocale.TraditionalChinese -> "这一版为什么适合你"
+        else -> "Why it fits"
+    }
+    val strategy = plan.personalizationStrategy.ifBlank {
+        when (locale) {
+            TodayPlayLocale.SimplifiedChinese,
+            TodayPlayLocale.TraditionalChinese -> "最贴合"
+            else -> "Best fit"
+        }
+    }
+    val signals = plan.personalizationSignals.ifEmpty {
+        listOf(plan.city, plan.relationshipType, plan.estimatedDuration, plan.estimatedCost)
+    }
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
+        .take(5)
+    val fallbackReasons = buildList {
+        add(plan.routeSummary)
+        plan.stops.take(2).forEach { stop -> add(stop.whyForGroup) }
+        add(record.quest.completionSummary)
+    }
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
+        .take(3)
+    val reasons = plan.personalizationReasons.ifEmpty { fallbackReasons }
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
+        .take(3)
+
+    SoftCard {
+        SectionHeader("FIT", title, "personal fit")
+        Spacer(Modifier.height(10.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            KawaiiChip(text = strategy, selected = true, onClick = {})
+            signals.forEach { signal ->
+                KawaiiChip(text = signal, selected = false, onClick = {})
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        reasons.forEach { reason ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Text("•", color = CherryPressed, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    reason,
+                    color = WarmGray,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+        }
+        if (plan.personalizationTradeoff.isNotBlank()) {
+            Text(
+                plan.personalizationTradeoff,
+                color = CherryPressed,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(4.dp))
+        }
+        Text(
+            plan.personalizationSourceNote.ifBlank {
+                cleanAiCoverageNote(locale, record.quest.tags.any { it.contains("AI") })
+            },
+            color = CherryPressed,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
 @Composable
 private fun PersonalFitCard(record: QuestRecord, locale: TodayPlayLocale) {
     val plan = record.quest.itineraryPlan ?: return
@@ -957,9 +1048,19 @@ private fun cleanAiCoverageNote(locale: TodayPlayLocale, aiAssisted: Boolean): S
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun RouteTuneCard(onTuneRoute: (String) -> Unit) {
+private fun RouteTuneCard(currentStrategy: String, onTuneRoute: (String) -> Unit) {
     SoftCard(padding = 14.dp) {
         Text("继续调味", color = InkBlack, style = MaterialTheme.typography.titleSmall)
+        if (currentStrategy.isNotBlank()) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "当前版本：$currentStrategy",
+                color = CherryPressed,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         Spacer(Modifier.height(8.dp))
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),

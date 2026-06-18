@@ -77,6 +77,7 @@ import com.todayplay.app.generator.RouteIntent
 import com.todayplay.app.generator.RouteIntentInterpreter
 import com.todayplay.app.model.AccountSession
 import com.todayplay.app.model.QuestInput
+import com.todayplay.app.model.QuestRecord
 import com.todayplay.app.ui.components.GhostButton
 import com.todayplay.app.ui.components.HeartPrimaryButton
 import com.todayplay.app.ui.components.KawaiiChip
@@ -113,6 +114,8 @@ fun HomeScreen(
     onGoogleSignIn: () -> Unit,
     onLocalTesterSignIn: () -> Unit,
     onSignOut: () -> Unit,
+    recentRecords: List<QuestRecord> = emptyList(),
+    onReplayRecent: (QuestRecord) -> Unit = {},
 ) {
     ChatFirstHomeExperience(
         locale = selectedLocale,
@@ -120,6 +123,8 @@ fun HomeScreen(
         onSettings = onPrivacy,
         onSaved = onSaved,
         onGenerate = onInstantGenerate,
+        recentRecords = recentRecords,
+        onReplayRecent = onReplayRecent,
     )
     return
 
@@ -406,7 +411,7 @@ private fun ChatFirstCompanionIntro(compact: Boolean) {
                 .padding(start = 16.dp, end = if (compact) 108.dp else 138.dp),
         ) {
             Text(
-                text = "今天我先替你想一版",
+                text = if (compact) "先想一版" else "今天我先替你想一版",
                 color = InkBlack,
                 style = MaterialTheme.typography.titleSmall,
                 maxLines = 1,
@@ -414,7 +419,7 @@ private fun ChatFirstCompanionIntro(compact: Boolean) {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "说一句状态，路线会浮现。",
+                text = if (compact) "路线会浮现" else "说一句状态，路线会浮现。",
                 color = WarmGray,
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = if (compact) 1 else 2,
@@ -458,6 +463,8 @@ private fun ChatFirstHomeExperience(
     onSettings: () -> Unit,
     onSaved: () -> Unit,
     onGenerate: (QuestInput) -> Unit,
+    recentRecords: List<QuestRecord>,
+    onReplayRecent: (QuestRecord) -> Unit,
 ) {
     var rawText by rememberSaveable { mutableStateOf("") }
     var selectedCity by rememberSaveable { mutableStateOf("上海") }
@@ -490,7 +497,7 @@ private fun ChatFirstHomeExperience(
     PaperBackground {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val wide = maxWidth >= 720.dp
-            val compact = maxHeight < 720.dp
+            val compact = maxHeight < 720.dp || maxWidth < 390.dp
             val shortLandscape = maxWidth > maxHeight && maxHeight < 520.dp
             val useWideLayout = wide && !shortLandscape
             val pagePadding = if (maxWidth < 360.dp) 16.dp else 22.dp
@@ -508,6 +515,7 @@ private fun ChatFirstHomeExperience(
                         onHistory = onHistory,
                         onSettings = onSettings,
                         onSaved = onSaved,
+                        compact = compact,
                     )
                 }
                 if (useWideLayout && intent != null && cards.isNotEmpty()) {
@@ -546,6 +554,12 @@ private fun ChatFirstHomeExperience(
                                     onGenerateCards = ::generateCards,
                                     compact = compact,
                                 )
+                                if (recentRecords.isNotEmpty()) {
+                                    RecentIntentStrip(
+                                        recentRecords = recentRecords,
+                                        onReplayRecent = onReplayRecent,
+                                    )
+                                }
                                 ChatFirstRoutePrinciples()
                             }
                             Column(
@@ -606,6 +620,14 @@ private fun ChatFirstHomeExperience(
                             compact = compact,
                         )
                     }
+                    if (recentRecords.isNotEmpty() && (intent == null || cards.isEmpty())) {
+                        item {
+                            RecentIntentStrip(
+                                recentRecords = recentRecords,
+                                onReplayRecent = onReplayRecent,
+                            )
+                        }
+                    }
                 }
                 if (!useWideLayout && intent != null && cards.isNotEmpty()) {
                     item {
@@ -655,11 +677,113 @@ private fun ChatFirstHomeExperience(
 }
 
 @Composable
+private fun RecentIntentStrip(
+    recentRecords: List<QuestRecord>,
+    onReplayRecent: (QuestRecord) -> Unit,
+) {
+    SoftCard(padding = 14.dp) {
+        Text(
+            text = "继续刚才的今天",
+            color = InkBlack,
+            style = MaterialTheme.typography.titleSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(8.dp))
+        recentRecords.take(3).forEach { record ->
+            val plan = record.quest.itineraryPlan
+            val strategy = plan?.personalizationStrategy
+                ?.takeIf { it.isNotBlank() }
+                ?: record.quest.relationship
+            val meta = listOfNotNull(
+                record.quest.city ?: plan?.city,
+                record.quest.duration.takeIf { it.isNotBlank() },
+                record.quest.budget.takeIf { it.isNotBlank() },
+            ).joinToString(" / ")
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable { onReplayRecent(record) }
+                    .background(RoseGold.copy(alpha = 0.11f))
+                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = strategy,
+                    color = CherryPressed,
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = record.quest.title,
+                    color = InkBlack,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = meta,
+                    color = WarmGray,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
 private fun ChatFirstTopBar(
     onHistory: () -> Unit,
     onSettings: () -> Unit,
     onSaved: () -> Unit,
+    compact: Boolean,
 ) {
+    if (compact) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 860.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "TodayPlay",
+                        color = InkBlack,
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = "用一句话安排今天",
+                        color = WarmGray,
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                KawaiiChip(text = "设置", selected = false, onClick = onSettings)
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                KawaiiChip(text = "历史", selected = false, onClick = onHistory)
+                KawaiiChip(text = "收藏", selected = false, onClick = onSaved)
+            }
+        }
+        return
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -709,12 +833,14 @@ private fun ChatFirstComposer(
         } else {
             quickChips
         }
-        ChatFirstCompanionIntro(compact = compact)
-        Spacer(Modifier.height(if (compact) 10.dp else 14.dp))
+        if (!compact) {
+            ChatFirstCompanionIntro(compact = false)
+            Spacer(Modifier.height(14.dp))
+        }
         Text(
             text = "今天想怎么玩？",
             color = InkBlack,
-            style = MaterialTheme.typography.headlineMedium,
+            style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -732,15 +858,17 @@ private fun ChatFirstComposer(
             onValueChange = onRawTextChange,
             placeholder = {
                 Text(
-                    "比如：今晚两个人，少走路",
+                    if (compact) "今晚两人少走路" else "比如：今晚两个人，少走路",
                     color = WarmGray,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             },
             modifier = Modifier.fillMaxWidth(),
             minLines = if (compact) 1 else 3,
-            maxLines = if (compact) 2 else 4,
+            maxLines = if (compact) 1 else 4,
             shape = RoundedCornerShape(20.dp),
-            textStyle = MaterialTheme.typography.bodyLarge.copy(color = InkBlack),
+            textStyle = (if (compact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge).copy(color = InkBlack),
         )
         Spacer(Modifier.height(if (compact) 8.dp else 12.dp))
         FlowRow(
@@ -832,6 +960,16 @@ private fun CandidateRouteCardView(
     onSelect: () -> Unit,
 ) {
     TicketCard(modifier = modifier.clickable { onSelect() }) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            KawaiiChip(text = card.strategyLabel, selected = true, onClick = {})
+            card.evidenceSignals.take(3).forEach { signal ->
+                KawaiiChip(text = signal, selected = false, onClick = {})
+            }
+        }
+        Spacer(Modifier.height(8.dp))
         Text(
             text = card.title,
             color = InkBlack,
@@ -879,8 +1017,23 @@ private fun CandidateRouteCardView(
                 KawaiiChip(text = label, selected = false, onClick = {})
             }
         }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = card.tradeoff,
+            color = CherryPressed,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = card.sourceNote,
+            color = WarmGray,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
         Spacer(Modifier.height(10.dp))
-        HeartPrimaryButton(text = "选这条生成路线", onClick = onSelect)
+        HeartPrimaryButton(text = "按这版生成", onClick = onSelect)
     }
 }
 
