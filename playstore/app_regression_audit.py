@@ -57,6 +57,7 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
     tp_art_splash_asset = root / "app" / "src" / "main" / "res" / "drawable-nodpi" / "tp_art_splash_companion.webp"
     tp_art_home_asset = root / "app" / "src" / "main" / "res" / "drawable-nodpi" / "tp_art_home_companion.webp"
     tp_art_loading_asset = root / "app" / "src" / "main" / "res" / "drawable-nodpi" / "tp_art_loading_route.webp"
+    tp_art_time_cinema_asset = root / "app" / "src" / "main" / "res" / "drawable-nodpi" / "tp_art_time_cinema_route.png"
     share_screen = read_text(app_root / "ui" / "screens" / "ShareCardScreen.kt")
     privacy_screen = read_text(app_root / "ui" / "screens" / "PrivacyScreen.kt")
     view_model = read_text(app_root / "TodayPlayViewModel.kt")
@@ -85,10 +86,18 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         })
 
     add(
-        "V0.9.67 typography hotfix version metadata",
-        'versionName = "0.9.67"' in build_gradle and "versionCode = 84" in build_gradle,
-        "expected versionName=0.9.67 and versionCode=84",
+        "V0.9.68 director motion and state retention version metadata",
+        'versionName = "0.9.68"' in build_gradle and "versionCode = 85" in build_gradle,
+        "expected versionName=0.9.68 and versionCode=85",
         "Keep every external-test APK versioned independently so testers never install an ambiguous build.",
+    )
+
+    add(
+        "Screen and locale survive foldable resize",
+        "rememberSaveable { mutableStateOf(AppScreen.Splash) }" in main_activity
+        and "rememberSaveable { mutableStateOf(TodayPlayLocale.SimplifiedChinese) }" in main_activity,
+        "App screen and locale use rememberSaveable instead of plain remember.",
+        "Keep configuration changes from dropping users back to the opening screen during foldable, landscape, and split-screen QA.",
     )
 
     chat_first_tokens = [
@@ -571,6 +580,19 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         "maxLines = 2",
         "lineHeight = 28.sp",
     ]
+    splash_copy_tokens = [
+        "SplashTaglineText(",
+        "text = strings.appEnglishName",
+        "fontSize = 15.sp",
+        "stableSplashTaglineLines",
+        "SimplifiedSplashLine1",
+        "SimplifiedSplashLine2",
+        "TraditionalSplashLine1",
+        "TraditionalSplashLine2",
+        "softWrap = false",
+        "maxLines = 1",
+        "widthIn(max = 360.dp)",
+    ]
     add(
         "Splash tagline avoids orphan Chinese characters",
         has_all(splash_screen, splash_copy_tokens),
@@ -654,6 +676,10 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         '"cinema" -> {',
         'poiId = "sh-cinema-film-park"',
         'poiId = "tokyo-cinema-suga-steps"',
+        'poiId = "sh-cinema-wukang-balcony"',
+        'poiId = "sh-cinema-suzhou-creek-bridge"',
+        'poiId = "tokyo-cinema-shimokitazawa-vinyl"',
+        'poiId = "tokyo-cinema-daikanyama-book"',
         "真实取景地关系需来源核验",
     ]
     add(
@@ -666,9 +692,12 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
 
     time_cinema_visual_tokens = [
         "TimeCinemaTicketCard",
+        "TimeCinemaDirectorStrip",
         "TimeCinemaRouteMap",
         "TimeCinemaSceneRow",
         "TODAY WAS PLAYED / 今日电影票",
+        "DIRECTOR'S CUT / 导演剪辑",
+        "tp_art_time_cinema_route",
         "场记板",
         "导航当前镜头",
         "MAP ROUTE",
@@ -679,9 +708,11 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
     ]
     add(
         "V0.9.66 time-cinema ticket and route-map result UI",
-        has_all(result_screen, time_cinema_visual_tokens),
-        f"tokens={time_cinema_visual_tokens}",
-        "Keep the time-cinema result page visually centered on a ticket, clapper-board cue, three acts, and a non-official in-app route map.",
+        has_all(result_screen, time_cinema_visual_tokens)
+        and tp_art_time_cinema_asset.exists()
+        and tp_art_time_cinema_asset.stat().st_size < 3_000_000,
+        f"tokens={time_cinema_visual_tokens}; timeCinemaAssetOk={tp_art_time_cinema_asset.exists()}",
+        "Keep the time-cinema result page visually centered on a generated route background, director film strip, clapper-board cue, three acts, and a non-official in-app route map.",
     )
 
     adaptive_text_tokens = [

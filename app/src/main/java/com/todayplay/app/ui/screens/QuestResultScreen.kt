@@ -48,6 +48,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -385,7 +387,7 @@ private fun TimeCinemaTicketCard(
                     .background(BlackCherry),
             ) {
                 Image(
-                    painter = painterResource(R.drawable.romantic_ticket),
+                    painter = painterResource(R.drawable.tp_art_time_cinema_route),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
@@ -460,6 +462,14 @@ private fun TimeCinemaTicketCard(
                     KawaiiChip(text = copy.currentMapAction, selected = true, onClick = { onOpenMap(currentStop) })
                 }
 
+                TimeCinemaDirectorStrip(
+                    plan = plan,
+                    currentStop = currentStop,
+                    record = record,
+                    copy = copy,
+                    glow = glow,
+                )
+
                 TimeCinemaRouteMap(
                     plan = plan,
                     currentStop = currentStop,
@@ -492,6 +502,117 @@ private fun TimeCinemaTicketCard(
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimeCinemaDirectorStrip(
+    plan: ItineraryPlan,
+    currentStop: RouteStop,
+    record: QuestRecord,
+    copy: TimeCinemaStrings,
+    glow: Float,
+) {
+    val activeIndex = plan.stops.indexOfFirst { it.stopId == currentStop.stopId }.coerceAtLeast(0)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(BlackCherry.copy(alpha = 0.94f))
+            .border(1.dp, RoseGold.copy(alpha = 0.34f), RoundedCornerShape(18.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(copy.directorTitle, color = RoseGold, style = MaterialTheme.typography.labelLarge)
+                Text(
+                    copy.directorLine,
+                    color = GalleryWhite.copy(alpha = 0.82f),
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                "Act ${(activeIndex + 1).coerceAtMost(9).toString().padStart(2, '0')}",
+                color = GalleryWhite,
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(74.dp),
+        ) {
+            Canvas(Modifier.fillMaxSize()) {
+                val frameCount = plan.stops.size.coerceIn(1, 4)
+                val stripLeft = size.width * 0.02f
+                val stripTop = size.height * 0.22f
+                val stripWidth = size.width * 0.96f
+                val stripHeight = size.height * 0.56f
+                val gap = 8f
+                val frameWidth = (stripWidth - gap * (frameCount + 1)) / frameCount
+                drawRoundRect(
+                    color = InkBlack.copy(alpha = 0.92f),
+                    topLeft = Offset(stripLeft, stripTop),
+                    size = Size(stripWidth, stripHeight),
+                    cornerRadius = CornerRadius(18f, 18f),
+                )
+                repeat(10) { index ->
+                    val x = stripLeft + stripWidth * (index + 0.5f) / 10f
+                    drawRoundRect(
+                        color = TicketBeige.copy(alpha = 0.34f),
+                        topLeft = Offset(x - 5f, stripTop + 5f),
+                        size = Size(10f, 7f),
+                        cornerRadius = CornerRadius(3f, 3f),
+                    )
+                    drawRoundRect(
+                        color = TicketBeige.copy(alpha = 0.34f),
+                        topLeft = Offset(x - 5f, stripTop + stripHeight - 12f),
+                        size = Size(10f, 7f),
+                        cornerRadius = CornerRadius(3f, 3f),
+                    )
+                }
+                repeat(frameCount) { index ->
+                    val stop = plan.stops[index]
+                    val frameLeft = stripLeft + gap + index * (frameWidth + gap)
+                    val frameTop = stripTop + 15f
+                    val done = record.progress.statusFor(stop.checkInTask.taskId).isResolved()
+                    val active = index == activeIndex
+                    drawRoundRect(
+                        color = when {
+                            active -> RoseGold.copy(alpha = 0.30f + glow)
+                            done -> CherryPressed.copy(alpha = 0.42f)
+                            else -> GalleryWhite.copy(alpha = 0.12f)
+                        },
+                        topLeft = Offset(frameLeft, frameTop),
+                        size = Size(frameWidth, stripHeight - 30f),
+                        cornerRadius = CornerRadius(10f, 10f),
+                    )
+                    if (active) {
+                        drawLine(
+                            color = GalleryWhite.copy(alpha = 0.70f),
+                            start = Offset(frameLeft + frameWidth * (0.18f + glow), frameTop + 4f),
+                            end = Offset(frameLeft + frameWidth * (0.18f + glow), frameTop + stripHeight - 34f),
+                            strokeWidth = 3f,
+                            cap = StrokeCap.Round,
+                        )
+                    }
+                    drawCircle(
+                        color = if (active || done) GalleryWhite else RoseGold.copy(alpha = 0.72f),
+                        radius = if (active) 5.5f else 4f,
+                        center = Offset(frameLeft + frameWidth * 0.5f, frameTop + (stripHeight - 30f) * 0.5f),
+                    )
+                }
             }
         }
     }
@@ -685,6 +806,8 @@ private data class TimeCinemaStrings(
     val kicker: String,
     val boardTitle: String,
     val boardLine: String,
+    val directorTitle: String,
+    val directorLine: String,
     val currentMapAction: String,
     val sampleSource: String,
     val verifiedSource: String,
@@ -699,6 +822,8 @@ private fun timeCinemaStrings(locale: TodayPlayLocale): TimeCinemaStrings {
             kicker = "TODAY WAS PLAYED / 今日电影票",
             boardTitle = "场记板",
             boardLine = "先看地图线路，再按三幕完成今天；来源状态会单独标注。",
+            directorTitle = "DIRECTOR'S CUT / 导演剪辑",
+            directorLine = "当前镜头会在胶片条里点亮，完成一站就给今天盖一格。",
             currentMapAction = "导航当前镜头",
             sampleSource = "电影感灵感",
             verifiedSource = "已核验来源",
@@ -709,6 +834,8 @@ private fun timeCinemaStrings(locale: TodayPlayLocale): TimeCinemaStrings {
             kicker = "TODAY WAS PLAYED / private scene",
             boardTitle = "Clapper board",
             boardLine = "Read the route map first, then play today in three scenes. This is a cinematic route, not an official filming claim.",
+            directorTitle = "DIRECTOR'S CUT",
+            directorLine = "The active scene lights up on the film strip. Completed stops become today's stamped frames.",
             currentMapAction = "Navigate scene",
             sampleSource = "Cinematic vibe",
             verifiedSource = "Verified source",

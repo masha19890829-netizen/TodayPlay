@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -41,6 +42,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.todayplay.app.R
@@ -138,21 +140,18 @@ fun SplashScreen(onFinished: () -> Unit) {
                     text = strings.appEnglishName,
                     color = InkBlack,
                     fontFamily = FontFamily.Serif,
-                    fontSize = 20.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.graphicsLayer { alpha = introAlpha },
-                )
-                Spacer(Modifier.height(14.dp))
-                Text(
-                    text = balancedSplashTagline(strings.splashTagline),
-                    color = WarmGray,
-                    style = MaterialTheme.typography.bodyLarge,
-                    lineHeight = 28.sp,
-                    maxLines = 2,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Clip,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
-                        .widthIn(max = 620.dp)
+                        .widthIn(max = 360.dp)
                         .graphicsLayer { alpha = introAlpha },
+                )
+                Spacer(Modifier.height(14.dp))
+                SplashTaglineText(
+                    tagline = strings.splashTagline,
+                    modifier = Modifier.graphicsLayer { alpha = introAlpha },
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -186,6 +185,67 @@ private fun balancedSplashTagline(tagline: String): String {
         else -> tagline
     }
 }
+
+@Composable
+private fun SplashTaglineText(
+    tagline: String,
+    modifier: Modifier = Modifier,
+) {
+    val lines = stableSplashTaglineLines(tagline)
+    if (lines.size > 1) {
+        Column(
+            modifier = modifier.widthIn(max = 360.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            lines.forEach { line ->
+                Text(
+                    text = line,
+                    color = WarmGray,
+                    style = MaterialTheme.typography.bodyLarge,
+                    lineHeight = 24.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Clip,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+    } else {
+        Text(
+            text = lines.firstOrNull().orEmpty(),
+            color = WarmGray,
+            style = MaterialTheme.typography.bodyLarge,
+            lineHeight = 24.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = modifier.widthIn(max = 360.dp),
+        )
+    }
+}
+
+private fun stableSplashTaglineLines(tagline: String): List<String> {
+    return when (tagline) {
+        SimplifiedSplashTagline -> listOf(SimplifiedSplashLine1, SimplifiedSplashLine2)
+        TraditionalSplashTagline -> listOf(TraditionalSplashLine1, TraditionalSplashLine2)
+        else -> tagline.split("\n").map { it.trim() }.filter { it.isNotEmpty() }.ifEmpty { listOf(tagline) }
+    }
+}
+
+private const val SimplifiedSplashTagline =
+    "\u628a\u666e\u901a\u65e5\u5b50\uff0c\u526a\u6210\u4e00\u5c0f\u6bb5\u53ea\u5c5e\u4e8e\u4f60\u4eec\u7684\u7535\u5f71\u3002"
+private const val SimplifiedSplashLine1 =
+    "\u628a\u666e\u901a\u65e5\u5b50\uff0c\u526a\u6210"
+private const val SimplifiedSplashLine2 =
+    "\u53ea\u5c5e\u4e8e\u4f60\u4eec\u7684\u4e00\u5c0f\u6bb5\u7535\u5f71\u3002"
+private const val TraditionalSplashTagline =
+    "\u628a\u666e\u901a\u65e5\u5b50\uff0c\u526a\u6210\u4e00\u5c0f\u6bb5\u53ea\u5c6c\u65bc\u4f60\u5011\u7684\u96fb\u5f71\u3002"
+private const val TraditionalSplashLine1 =
+    "\u628a\u666e\u901a\u65e5\u5b50\uff0c\u526a\u6210"
+private const val TraditionalSplashLine2 =
+    "\u53ea\u5c6c\u65bc\u4f60\u5011\u7684\u4e00\u5c0f\u6bb5\u96fb\u5f71\u3002"
 
 @Composable
 private fun SplashStampMark(

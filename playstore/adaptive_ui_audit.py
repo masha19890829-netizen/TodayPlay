@@ -22,6 +22,7 @@ def main() -> int:
     root = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path.cwd().resolve()
     ui_root = root / "app/src/main/java/com/todayplay/app/ui"
     home = ui_root / "screens/HomeScreen.kt"
+    splash = ui_root / "screens/SplashScreen.kt"
     create = ui_root / "screens/CreateQuestScreen.kt"
     result = ui_root / "screens/QuestResultScreen.kt"
     shop = ui_root / "screens/ShopScreen.kt"
@@ -30,6 +31,7 @@ def main() -> int:
     type_file = ui_root / "theme/Type.kt"
 
     home_text = read_text(home)
+    splash_text = read_text(splash)
     create_text = read_text(create)
     result_text = read_text(result)
     shop_text = read_text(shop)
@@ -38,6 +40,16 @@ def main() -> int:
     type_text = read_text(type_file)
 
     checks = [
+        (
+            "Splash tagline fixed line layout",
+            "SplashTaglineText(" in splash_text
+            and "stableSplashTaglineLines" in splash_text
+            and "softWrap = false" in splash_text
+            and "maxLines = 1" in splash_text
+            and "widthIn(max = 360.dp)" in splash_text,
+            str(splash),
+            "Opening subtitle should use fixed two-line CJK layout instead of allowing a single Chinese character to fall onto its own line.",
+        ),
         (
             "Home screen width classes",
             "BoxWithConstraints" in home_text

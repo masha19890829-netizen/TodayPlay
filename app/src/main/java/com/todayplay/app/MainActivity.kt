@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -79,8 +80,8 @@ private enum class AppScreen {
 private fun TodayPlayApp() {
     val context = LocalContext.current
     val activity = context as? ComponentActivity
-    var screen by remember { mutableStateOf(AppScreen.Splash) }
-    var selectedLocale by remember { mutableStateOf(TodayPlayLocale.SimplifiedChinese) }
+    var screen by rememberSaveable { mutableStateOf(AppScreen.Splash) }
+    var selectedLocale by rememberSaveable { mutableStateOf(TodayPlayLocale.SimplifiedChinese) }
     var accountSession by remember { mutableStateOf<AccountSession?>(null) }
     var accountMessage by remember { mutableStateOf<String?>(null) }
     var accountBusy by remember { mutableStateOf(false) }
