@@ -8,11 +8,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -44,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -568,6 +573,7 @@ private fun ChatFirstHomeExperience(
                             ) {
                                 IntentSummaryCard(intent = intent!!)
                                 CandidateResultHeader(cards.size, wide = true)
+                                DirectorCutPanel(intent = intent!!, cards = cards, wide = true)
                                 CandidateCardGrid(
                                     cards = cards,
                                     wide = true,
@@ -634,14 +640,10 @@ private fun ChatFirstHomeExperience(
                         IntentSummaryCard(intent = intent!!)
                     }
                     item {
-                        Text(
-                            text = "为你生成了 ${cards.size} 种今天的过法",
-                            color = InkBlack,
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .widthIn(max = if (wide) 860.dp else 640.dp),
-                        )
+                        CandidateResultHeader(cards.size, wide = wide)
+                    }
+                    item {
+                        DirectorCutPanel(intent = intent!!, cards = cards, wide = wide)
                     }
                     item {
                         CandidateCardGrid(
@@ -930,11 +932,124 @@ private fun IntentSummaryCard(intent: RouteIntent) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
+private fun DirectorCutPanel(
+    intent: RouteIntent,
+    cards: List<CandidateRouteCard>,
+    wide: Boolean,
+) {
+    val transition = rememberInfiniteTransition(label = "director-cut-motion")
+    val pulse by transition.animateFloat(
+        initialValue = 0.18f,
+        targetValue = 0.42f,
+        animationSpec = infiniteRepeatable(tween(1400), RepeatMode.Reverse),
+        label = "director-cut-pulse",
+    )
+    SoftCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = if (wide) 860.dp else 640.dp),
+        padding = 14.dp,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Canvas(
+                modifier = Modifier
+                    .size(width = 54.dp, height = 44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(BlackCherry.copy(alpha = 0.94f)),
+            ) {
+                val stripeHeight = size.height / 5f
+                repeat(5) { index ->
+                    drawRect(
+                        color = if (index % 2 == 0) GalleryWhite.copy(alpha = 0.82f) else RoseGold.copy(alpha = 0.68f),
+                        topLeft = Offset(0f, index * stripeHeight),
+                        size = androidx.compose.ui.geometry.Size(size.width, stripeHeight * 0.72f),
+                    )
+                }
+                drawCircle(
+                    color = DustPink.copy(alpha = pulse),
+                    radius = size.minDimension * 0.22f,
+                    center = Offset(size.width * 0.72f, size.height * 0.62f),
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "导演剪辑",
+                    color = InkBlack,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "${intent.city} / ${intent.relationship} / ${intent.primaryGoal}",
+                    color = WarmGray,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                text = "${cards.size} CUTS",
+                color = CherryPressed,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            cards.take(if (wide) 6 else 4).forEachIndexed { index, card ->
+                val alpha by animateFloatAsState(
+                    targetValue = 0.78f + index * 0.035f,
+                    animationSpec = tween(260),
+                    label = "director-chip-alpha",
+                )
+                Text(
+                    text = "Act ${index + 1} · ${card.strategyLabel}",
+                    color = if (index == 0) GalleryWhite else CherryPressed,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(if (index == 0) CherryPressed.copy(alpha = alpha) else RoseGold.copy(alpha = 0.18f))
+                        .border(1.dp, if (index == 0) CherryPressed else LineBeige, RoundedCornerShape(999.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = "先看几种过法，选中哪张，结果页就继承那张卡的站点、顺序和理由。",
+            color = WarmGray,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
 private fun CandidateCardGrid(
     cards: List<CandidateRouteCard>,
     wide: Boolean,
     onSelect: (CandidateRouteCard) -> Unit,
 ) {
+    var revealedCount by remember(cards) { mutableIntStateOf(0) }
+    LaunchedEffect(cards) {
+        revealedCount = 0
+        cards.indices.forEach { index ->
+            delay(75)
+            revealedCount = index + 1
+        }
+    }
     FlowRow(
         modifier = Modifier
             .fillMaxWidth()
@@ -942,12 +1057,24 @@ private fun CandidateCardGrid(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        cards.forEach { card ->
-            CandidateRouteCardView(
-                card = card,
-                modifier = if (wide) Modifier.weight(1f).widthIn(min = 280.dp) else Modifier.fillMaxWidth(),
-                onSelect = { onSelect(card) },
-            )
+        cards.forEachIndexed { index, card ->
+            AnimatedVisibility(
+                visible = index < revealedCount,
+                enter = fadeIn(tween(180)) + slideInVertically(
+                    animationSpec = tween(220),
+                    initialOffsetY = { it / 5 },
+                ),
+            ) {
+                CandidateRouteCardView(
+                    card = card,
+                    modifier = if (wide) {
+                        Modifier.widthIn(min = 280.dp, max = 420.dp)
+                    } else {
+                        Modifier.fillMaxWidth()
+                    },
+                    onSelect = { onSelect(card) },
+                )
+            }
         }
     }
 }

@@ -124,6 +124,9 @@ def main() -> int:
             and "compact: Boolean" in home_text
             and "KawaiiChip(text = \"设置\", selected = false, onClick = onSettings)" in home_text
             and "PersonalFitCardV2" in result_text
+            and "TodayQuestTicketCover" in result_text
+            and "DirectorCutPanel" in home_text
+            and "fadeIn(tween(180)) + slideInVertically" in home_text
             and "plan.personalizationReasons" in result_text
             and "currentStrategy" in result_text
             and result_text.count("overflow = TextOverflow.Ellipsis") >= 12,

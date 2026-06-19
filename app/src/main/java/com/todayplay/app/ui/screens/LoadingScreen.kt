@@ -307,7 +307,7 @@ private fun LoadingStageRail(
     succeeded: Boolean,
     compact: Boolean,
 ) {
-    val stages = listOf("理解需求", "排列路线", "检查预算", "打印票根")
+    val stages = listOf("理解需求", "筛选同城镜头", "剪成路线副本", "打印今日票根")
     val railModifier = Modifier
         .fillMaxWidth()
         .widthIn(max = 620.dp)

@@ -277,13 +277,14 @@ object RouteIntentInterpreter {
 
     private fun whyFor(intent: RouteIntent, strategy: String): String {
         return when (strategy) {
-            "quiet" -> "你提到${intent.moodTags.joinToString("、")}，所以先降低移动和社交压力。"
-            "lively" -> "保留${intent.relationship}一起玩的能量，路线更适合拍照和临时聊天。"
-            "budget" -> "预算被放在硬约束里，优先公共空间和低消费补给点。"
-            "short" -> "把站点压在更小区域里，避免出门后越走越累。"
-            "cinema" -> "你想要电影感，所以优先选择有镜头感的街区、室内、夜景或票根式收尾。"
-            "surprise" -> "不突破预算和城市边界，但给今天留一个没预设的小转角。"
-            else -> "按${intent.city}、${intent.relationship}、${intent.timeBudget}和${intent.primaryGoal}一起平衡。"
+            "quiet" -> "因为你提到${intent.moodTags.joinToString("、")}，所以先降低移动和社交压力。"
+            "lively" -> "因为这是${intent.relationship}场景，所以保留一起拍照、临时聊天和收尾的能量。"
+            "budget" -> "因为预算是${intent.moneyBudget}，所以优先公共空间和低消费补给点。"
+            "short" -> "因为你要${intent.mobility}，所以把站点压在更小区域里，避免越走越累。"
+            "cinema" -> "因为你想要电影感，所以优先选择有镜头感的街区、室内、夜景或票根式收尾。"
+            "surprise" -> "因为你要${intent.primaryGoal}，所以在不突破预算和城市边界的前提下留一个小转角。"
+            "indoor" -> "因为你选择${intent.indoorPreference}，所以优先能坐下、能避雨、好撤退的室内点。"
+            else -> "因为你在${intent.city}，和${intent.relationship}想要${intent.primaryGoal}，所以先平衡时长、预算和体力。"
         }
     }
 

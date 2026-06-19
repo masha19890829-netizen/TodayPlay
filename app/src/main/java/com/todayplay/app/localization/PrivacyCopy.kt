@@ -25,7 +25,7 @@ data class PrivacyStrings(
 fun privacyStrings(locale: TodayPlayLocale): PrivacyStrings = when (locale) {
     TodayPlayLocale.SimplifiedChinese -> PrivacyStrings(
         navLabel = "设置",
-        title = "设置与隐私",
+        title = "隐私与本地数据",
         subtitle = "settings & privacy",
         languageTitle = "语言",
         languageBody = "语言属于个人设置，不打断首页推荐和路线生成。",
@@ -51,7 +51,7 @@ fun privacyStrings(locale: TodayPlayLocale): PrivacyStrings = when (locale) {
     )
     TodayPlayLocale.TraditionalChinese -> PrivacyStrings(
         navLabel = "設定",
-        title = "設定與隱私",
+        title = "隱私與本機資料",
         subtitle = "settings & privacy",
         languageTitle = "語言",
         languageBody = "語言屬於個人設定，不打斷首頁推薦和路線生成。",

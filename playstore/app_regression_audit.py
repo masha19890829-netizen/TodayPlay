@@ -86,9 +86,9 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         })
 
     add(
-        "V0.9.69 personalization evidence and adaptive text version metadata",
-        'versionName = "0.9.69"' in build_gradle and "versionCode = 86" in build_gradle,
-        "expected versionName=0.9.69 and versionCode=86",
+        "V0.9.70 cinematic personalization and adaptive text version metadata",
+        'versionName = "0.9.70"' in build_gradle and "versionCode = 87" in build_gradle,
+        "expected versionName=0.9.70 and versionCode=87",
         "Keep every external-test APK versioned independently so testers never install an ambiguous build.",
     )
 
@@ -174,6 +174,27 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         and has_all(home_screen + result_screen + main_activity + splash_screen, v0969_ui_tokens),
         f"personalizationTokens={v0969_personalization_tokens}; uiTokens={v0969_ui_tokens}",
         "Keep route candidates and result pages visibly different by intent, preserve selected-card strategy into the result page, expose recent local intents, and prevent splash subtitles from leaving a single Chinese character alone.",
+    )
+
+    v0970_cinematic_tokens = [
+        "DirectorCutPanel",
+        "director-cut-motion",
+        "director-cut-pulse",
+        "TODAY WAS CUT",
+        "TodayQuestTicketCover",
+        "你的今日电影",
+        "Act ${index + 1} · ${card.strategyLabel}",
+        "fadeIn(tween(180)) + slideInVertically",
+        "筛选同城镜头",
+        "剪成路线副本",
+        "打印今日票根",
+        "因为你",
+    ]
+    add(
+        "V0.9.70 cinematic candidate and result-ticket layer",
+        has_all(home_screen + result_screen + loading_screen + route_interpreter, v0970_cinematic_tokens),
+        f"tokens={v0970_cinematic_tokens}",
+        "Keep the chat-first generation moment feeling like a personalized director cut: visible AI understanding, staggered candidate cards, and a ticket-style result cover that inherits the selected route strategy.",
     )
 
     ai_boundary_tokens = [
@@ -918,7 +939,7 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         "TodayPlayLocale.entries.forEach",
         "onLocaleSelected(locale)",
         'navLabel = "设置"',
-        'title = "设置与隐私"',
+        'title = "隐私与本地数据"',
     ]
     language_in_settings_ok = (
         has_all(privacy_screen + privacy_copy, language_settings_tokens)

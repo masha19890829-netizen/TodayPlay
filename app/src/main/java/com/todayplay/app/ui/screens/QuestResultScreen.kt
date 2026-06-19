@@ -133,7 +133,7 @@ fun QuestResultScreen(
 
     LaunchedEffect(quest) {
         visibleCount = 0
-        repeat(9) {
+        repeat(11) {
             delay(95)
             visibleCount += 1
         }
@@ -154,9 +154,14 @@ fun QuestResultScreen(
                     ResultHero(quest, copy)
                 }
                 if (itineraryPlan != null) {
+                    item {
+                        FadeItem(visibleCount >= 1) {
+                            TodayQuestTicketCover(record = record, locale = locale)
+                        }
+                    }
                     if (record.isTimeCinemaRoute()) {
                         item {
-                            FadeItem(visibleCount >= 1) {
+                            FadeItem(visibleCount >= 2) {
                                 TimeCinemaTicketCard(
                                     record = record,
                                     locale = locale,
@@ -166,17 +171,17 @@ fun QuestResultScreen(
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 2) {
+                        FadeItem(visibleCount >= 3) {
                             PersonalFitCardV2(record = record, locale = locale)
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 3) {
+                        FadeItem(visibleCount >= 4) {
                             RouteTuneCard(currentStrategy = itineraryPlan.personalizationStrategy, onTuneRoute = onTuneRoute)
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 4) {
+                        FadeItem(visibleCount >= 5) {
                             RouteVisualPreviewCard(
                                 record = record,
                                 locale = locale,
@@ -185,7 +190,7 @@ fun QuestResultScreen(
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 5) {
+                        FadeItem(visibleCount >= 6) {
                             RouteExecutionCard(
                                 record = record,
                                 locale = locale,
@@ -202,23 +207,23 @@ fun QuestResultScreen(
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 6) {
+                        FadeItem(visibleCount >= 7) {
                             MissionSummaryCard(quest = quest, progress = progress, completed = resolvedSteps, total = totalSteps, copy = copy)
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 7) {
+                        FadeItem(visibleCount >= 8) {
                             ItineraryOverviewCard(record, copy)
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 8) {
+                        FadeItem(visibleCount >= 9) {
                             RoutePlaybookCard(record, locale)
                         }
                     }
                     itineraryPlan.stops.forEach { stop ->
                         item {
-                            FadeItem(visibleCount >= 9) {
+                            FadeItem(visibleCount >= 10) {
                                 RouteStopCard(
                                     stop = stop,
                                     status = progressState.statusFor(stop.checkInTask.taskId),
@@ -346,6 +351,121 @@ private fun FadeItem(visible: Boolean, content: @Composable () -> Unit) {
         enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 }),
     ) {
         content()
+    }
+}
+
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+private fun TodayQuestTicketCover(record: QuestRecord, locale: TodayPlayLocale) {
+    val plan = record.quest.itineraryPlan ?: return
+    val title = when (locale) {
+        TodayPlayLocale.SimplifiedChinese,
+        TodayPlayLocale.TraditionalChinese -> "你的今日电影"
+        else -> "Your private quest"
+    }
+    val subtitle = plan.personalizationStrategy.ifBlank { plan.title }
+    val reason = plan.personalizationReasons.firstOrNull()?.ifBlank { null }
+        ?: plan.routeSummary
+    SoftCard(padding = 16.dp) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            GalleryWhite.copy(alpha = 0.96f),
+                            TicketBeige.copy(alpha = 0.72f),
+                        ),
+                    ),
+                )
+                .border(1.dp, LineBeige, RoundedCornerShape(24.dp))
+                .padding(16.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "TODAY WAS CUT",
+                        color = CherryPressed,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = BuildConfig.VERSION_NAME,
+                        color = WarmGray,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Text(
+                    text = title,
+                    color = InkBlack,
+                    fontFamily = FontFamily.Serif,
+                    fontSize = 25.sp,
+                    lineHeight = 31.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = subtitle,
+                    color = CherryPressed,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp),
+                ) {
+                    listOf(plan.city, plan.relationshipType, plan.estimatedDuration)
+                        .filter { it.isNotBlank() }
+                        .take(3)
+                        .forEach { chip ->
+                            KawaiiChip(text = chip, selected = false, onClick = {})
+                        }
+                }
+                Text(
+                    text = reason,
+                    color = WarmGray,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(34.dp),
+                ) {
+                    val baseline = size.height * 0.52f
+                    drawLine(
+                        color = LineBeige,
+                        start = Offset(size.width * 0.08f, baseline),
+                        end = Offset(size.width * 0.92f, baseline),
+                        strokeWidth = 3f,
+                        cap = StrokeCap.Round,
+                    )
+                    plan.stops.take(4).forEachIndexed { index, _ ->
+                        val x = size.width * (0.12f + index * 0.25f).coerceAtMost(0.88f)
+                        drawCircle(
+                            color = if (index == 0) CherryPressed else RoseGold,
+                            radius = if (index == 0) 8f else 6f,
+                            center = Offset(x, baseline),
+                        )
+                        drawCircle(
+                            color = GalleryWhite.copy(alpha = 0.88f),
+                            radius = 2.5f,
+                            center = Offset(x, baseline),
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1184,6 +1304,7 @@ private fun MissionSummaryCard(
             SummaryMetricChip(copy.budgetLabel, quest.budget)
             SummaryMetricChip(copy.awkwardLabel, "${awkwardIndex(quest)}/5")
             SummaryMetricChip(copy.energyLabel, "${energyIndex(quest)}/5")
+            SummaryMetricChip(copy.intimacyLabel, copy.intimacyFor(quest.relationship))
         }
     }
 }
