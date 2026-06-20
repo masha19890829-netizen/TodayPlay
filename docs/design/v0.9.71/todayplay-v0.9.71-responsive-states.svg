@@ -1,0 +1,235 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1180" viewBox="0 0 1920 1180">
+  <defs>
+    <filter id="paperNoise" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" seed="711"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="table" tableValues="0 0.05"/>
+      </feComponentTransfer>
+      <feBlend mode="multiply" in2="SourceGraphic"/>
+    </filter>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#3b2a24" flood-opacity="0.15"/>
+    </filter>
+    <linearGradient id="screenPaper" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#fbf7f0"/>
+      <stop offset="1" stop-color="#eee3d5"/>
+    </linearGradient>
+    <linearGradient id="dusk" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#d7bab2"/>
+      <stop offset="0.55" stop-color="#8b7169"/>
+      <stop offset="1" stop-color="#2f2d2a"/>
+    </linearGradient>
+    <linearGradient id="olive" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#d9d3ba"/>
+      <stop offset="1" stop-color="#667260"/>
+    </linearGradient>
+    <linearGradient id="rose" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#efd9d6"/>
+      <stop offset="1" stop-color="#a95658"/>
+    </linearGradient>
+    <style>
+      .bg { fill:#f5efe6; }
+      .ink { fill:#2e2724; }
+      .muted { fill:#837a72; }
+      .accent { fill:#9f5556; }
+      .olive { fill:#626f5e; }
+      .phone { fill:#1f1c1b; }
+      .screen { fill:url(#screenPaper); }
+      .card { fill:#fffaf2; stroke:#ded0be; stroke-width:1.1; }
+      .chip { fill:#f2eadf; stroke:#d9cdbc; stroke-width:1; }
+      .button { fill:#9f5556; }
+      .line { stroke:#d9cdbc; stroke-width:1.4; }
+      .title { font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif; font-size:46px; font-weight:700; letter-spacing:0; }
+      .h2 { font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif; font-size:26px; font-weight:700; letter-spacing:0; }
+      .body { font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif; font-size:18px; letter-spacing:0; }
+      .small { font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif; font-size:14px; letter-spacing:0; }
+      .tiny { font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif; font-size:11px; letter-spacing:0; }
+      .label { font-family:Arial,"Microsoft YaHei",sans-serif; font-size:12px; letter-spacing:2px; }
+    </style>
+  </defs>
+
+  <rect width="1920" height="1180" class="bg"/>
+  <rect width="1920" height="1180" fill="#fff" opacity="0.32" filter="url(#paperNoise)"/>
+  <g transform="translate(70 58)">
+    <text class="label muted">TODAYPLAY V0.9.71 RESPONSIVE STATES</text>
+    <text y="62" class="title ink">多设备设计稿：少字、可点、不卡布局</text>
+    <text y="101" class="body muted">普通手机、小屏、折叠屏、横屏都以瀑布流路线卡为主路径；输入框只作为“自己说一句”的次入口。</text>
+  </g>
+
+  <g transform="translate(72 188)">
+    <text class="label accent">01 NORMAL PHONE 360x800</text>
+    <rect x="0" y="30" width="290" height="650" rx="42" class="phone" filter="url(#shadow)"/>
+    <rect x="13" y="45" width="264" height="620" rx="34" class="screen"/>
+    <rect x="13" y="45" width="264" height="620" rx="34" fill="#fff" opacity="0.16" filter="url(#paperNoise)"/>
+    <text x="34" y="96" class="body ink">TodayPlay · 上海</text>
+    <text x="223" y="96" class="tiny muted">设置</text>
+    <g transform="translate(34 122)">
+      <rect width="48" height="26" rx="13" fill="#2e2724"/><text x="12" y="18" class="tiny" fill="#fffaf2">推荐</text>
+      <rect x="56" width="48" height="26" rx="13" class="chip"/><text x="68" y="18" class="tiny muted">约会</text>
+      <rect x="112" width="48" height="26" rx="13" class="chip"/><text x="124" y="18" class="tiny muted">朋友</text>
+      <rect x="168" width="48" height="26" rx="13" class="chip"/><text x="180" y="18" class="tiny muted">独处</text>
+      <rect y="34" width="48" height="26" rx="13" class="chip"/><text x="12" y="52" class="tiny muted">雨天</text>
+      <rect x="56" y="34" width="60" height="26" rx="13" class="chip"/><text x="68" y="52" class="tiny muted">低预算</text>
+      <rect x="124" y="34" width="60" height="26" rx="13" class="chip"/><text x="136" y="52" class="tiny muted">少走路</text>
+    </g>
+    <g transform="translate(34 206)">
+      <rect width="108" height="178" rx="8" class="card"/>
+      <rect x="8" y="8" width="92" height="76" rx="6" fill="url(#dusk)"/>
+      <path d="M18 66 C35 45 58 70 82 46" fill="none" stroke="#fffaf2" stroke-width="2"/>
+      <text x="10" y="108" class="small ink">黄昏散步</text>
+      <text x="10" y="130" class="tiny muted">2h · 100内</text>
+      <text x="10" y="152" class="tiny olive">3站 · 少走路</text>
+      <rect x="122" width="108" height="142" rx="8" class="card"/>
+      <rect x="130" y="8" width="92" height="54" rx="6" fill="url(#rose)"/>
+      <text x="132" y="88" class="small ink">电影打卡</text>
+      <text x="132" y="110" class="tiny muted">90m · 票根</text>
+      <rect x="122" y="158" width="108" height="178" rx="8" class="card"/>
+      <rect x="130" y="166" width="92" height="74" rx="6" fill="url(#olive)"/>
+      <text x="132" y="264" class="small ink">雨天室内</text>
+      <text x="132" y="286" class="tiny muted">坐下聊</text>
+      <rect y="196" width="108" height="140" rx="8" class="card"/>
+      <rect x="8" y="204" width="92" height="48" rx="6" fill="#d8cab7"/>
+      <text x="10" y="278" class="small ink">低预算聊</text>
+      <text x="10" y="300" class="tiny muted">3站 · 轻走</text>
+    </g>
+    <rect x="90" y="626" width="116" height="32" rx="16" class="button"/>
+    <text x="125" y="647" class="tiny" fill="#fffaf2">自己说一句</text>
+  </g>
+
+  <g transform="translate(412 188)">
+    <text class="label accent">02 SMALL PHONE 320x640</text>
+    <rect x="0" y="30" width="250" height="520" rx="38" class="phone" filter="url(#shadow)"/>
+    <rect x="12" y="44" width="226" height="492" rx="30" class="screen"/>
+    <rect x="12" y="44" width="226" height="492" rx="30" fill="#fff" opacity="0.16" filter="url(#paperNoise)"/>
+    <text x="30" y="90" class="small ink">TodayPlay · 上海</text>
+    <text x="196" y="90" class="tiny muted">设置</text>
+    <g transform="translate(30 112)">
+      <rect width="44" height="24" rx="12" fill="#2e2724"/><text x="10" y="17" class="tiny" fill="#fffaf2">推荐</text>
+      <rect x="50" width="44" height="24" rx="12" class="chip"/><text x="60" y="17" class="tiny muted">约会</text>
+      <rect x="100" width="44" height="24" rx="12" class="chip"/><text x="110" y="17" class="tiny muted">朋友</text>
+      <rect y="32" width="44" height="24" rx="12" class="chip"/><text x="10" y="49" class="tiny muted">雨天</text>
+      <rect x="50" y="32" width="56" height="24" rx="12" class="chip"/><text x="60" y="49" class="tiny muted">低预算</text>
+      <rect x="112" y="32" width="56" height="24" rx="12" class="chip"/><text x="122" y="49" class="tiny muted">少走路</text>
+    </g>
+    <g transform="translate(30 186)">
+      <rect width="88" height="150" rx="8" class="card"/>
+      <rect x="7" y="7" width="74" height="58" rx="6" fill="url(#dusk)"/>
+      <text x="8" y="90" class="tiny ink">黄昏散步</text>
+      <text x="8" y="112" class="tiny muted">2h · 100内</text>
+      <text x="8" y="132" class="tiny olive">3站</text>
+      <rect x="100" width="88" height="122" rx="8" class="card"/>
+      <rect x="107" y="7" width="74" height="42" rx="6" fill="url(#rose)"/>
+      <text x="108" y="74" class="tiny ink">电影打卡</text>
+      <text x="108" y="96" class="tiny muted">90m</text>
+      <rect x="100" y="136" width="88" height="152" rx="8" class="card"/>
+      <rect x="107" y="143" width="74" height="58" rx="6" fill="url(#olive)"/>
+      <text x="108" y="226" class="tiny ink">雨天室内</text>
+      <text x="108" y="248" class="tiny muted">坐下聊</text>
+    </g>
+    <rect x="72" y="496" width="108" height="30" rx="15" class="button"/>
+    <text x="105" y="516" class="tiny" fill="#fffaf2">自己说一句</text>
+    <text x="0" y="590" class="small muted">小屏红线：无单字换行、无按钮省略、主按钮不被遮挡。</text>
+  </g>
+
+  <g transform="translate(742 188)">
+    <text class="label accent">03 FOLDABLE INNER DISPLAY</text>
+    <rect x="0" y="30" width="520" height="650" rx="36" class="phone" filter="url(#shadow)"/>
+    <rect x="16" y="48" width="488" height="614" rx="28" class="screen"/>
+    <rect x="16" y="48" width="488" height="614" rx="28" fill="#fff" opacity="0.16" filter="url(#paperNoise)"/>
+    <text x="42" y="98" class="h2 ink">TodayPlay · 上海</text>
+    <text x="438" y="98" class="small muted">设置</text>
+    <g transform="translate(42 128)">
+      <rect width="54" height="28" rx="14" fill="#2e2724"/><text x="14" y="19" class="tiny" fill="#fffaf2">推荐</text>
+      <rect x="64" width="54" height="28" rx="14" class="chip"/><text x="78" y="19" class="tiny muted">约会</text>
+      <rect x="128" width="54" height="28" rx="14" class="chip"/><text x="142" y="19" class="tiny muted">朋友</text>
+      <rect x="192" width="54" height="28" rx="14" class="chip"/><text x="206" y="19" class="tiny muted">独处</text>
+      <rect x="256" width="54" height="28" rx="14" class="chip"/><text x="270" y="19" class="tiny muted">雨天</text>
+      <rect x="320" width="66" height="28" rx="14" class="chip"/><text x="334" y="19" class="tiny muted">低预算</text>
+    </g>
+    <g transform="translate(42 188)">
+      <rect width="128" height="190" rx="8" class="card"/>
+      <rect x="10" y="10" width="108" height="78" rx="6" fill="url(#dusk)"/>
+      <text x="12" y="116" class="small ink">黄昏散步</text>
+      <text x="12" y="140" class="tiny muted">上海 · 2h · 100内</text>
+      <text x="12" y="162" class="tiny olive">3站 · 少走路</text>
+      <rect x="146" width="128" height="154" rx="8" class="card"/>
+      <rect x="156" y="10" width="108" height="58" rx="6" fill="url(#rose)"/>
+      <text x="158" y="96" class="small ink">电影打卡</text>
+      <text x="158" y="120" class="tiny muted">上海 · 90m</text>
+      <rect x="292" width="128" height="204" rx="8" class="card"/>
+      <rect x="302" y="10" width="108" height="86" rx="6" fill="url(#olive)"/>
+      <text x="304" y="124" class="small ink">雨天室内</text>
+      <text x="304" y="148" class="tiny muted">上海 · 2h</text>
+      <text x="304" y="170" class="tiny olive">坐下聊天</text>
+      <rect x="0" y="216" width="274" height="104" rx="8" class="card"/>
+      <text x="18" y="254" class="body ink">最近路线</text>
+      <text x="18" y="284" class="small muted">黄昏散步局 · 继续从第 2 站开始</text>
+      <rect x="292" y="224" width="128" height="150" rx="8" class="card"/>
+      <rect x="302" y="234" width="108" height="52" rx="6" fill="#d8cab7"/>
+      <text x="304" y="312" class="small ink">低预算聊</text>
+      <text x="304" y="336" class="tiny muted">100 内 · 3站</text>
+    </g>
+    <text x="42" y="610" class="small muted">宽屏规则：卡片最大宽度受控，不拉成横幅，不回到说明页。</text>
+  </g>
+
+  <g transform="translate(1322 188)">
+    <text class="label accent">04 LANDSCAPE PHONE</text>
+    <rect x="0" y="30" width="500" height="258" rx="36" class="phone" filter="url(#shadow)"/>
+    <rect x="16" y="44" width="468" height="230" rx="26" class="screen"/>
+    <rect x="16" y="44" width="468" height="230" rx="26" fill="#fff" opacity="0.16" filter="url(#paperNoise)"/>
+    <g transform="translate(40 74)">
+      <text class="body ink">TodayPlay · 上海</text>
+      <text y="34" class="tiny muted">横屏：左边筛选，右边卡牌滚动</text>
+      <rect y="56" width="48" height="24" rx="12" fill="#2e2724"/><text x="10" y="73" class="tiny" fill="#fffaf2">推荐</text>
+      <rect x="56" y="56" width="48" height="24" rx="12" class="chip"/><text x="66" y="73" class="tiny muted">约会</text>
+      <rect y="88" width="56" height="24" rx="12" class="chip"/><text x="10" y="105" class="tiny muted">低预算</text>
+      <rect x="64" y="88" width="56" height="24" rx="12" class="chip"/><text x="74" y="105" class="tiny muted">少走路</text>
+      <rect y="140" width="112" height="28" rx="14" class="button"/><text x="34" y="159" class="tiny" fill="#fffaf2">自己说一句</text>
+    </g>
+    <g transform="translate(190 74)">
+      <rect width="96" height="150" rx="8" class="card"/>
+      <rect x="8" y="8" width="80" height="54" rx="6" fill="url(#dusk)"/>
+      <text x="10" y="88" class="tiny ink">黄昏散步</text>
+      <text x="10" y="108" class="tiny muted">2h · 100内</text>
+      <text x="10" y="128" class="tiny olive">3站</text>
+      <rect x="108" width="96" height="118" rx="8" class="card"/>
+      <rect x="116" y="8" width="80" height="44" rx="6" fill="url(#rose)"/>
+      <text x="118" y="78" class="tiny ink">电影打卡</text>
+      <text x="118" y="98" class="tiny muted">90m</text>
+      <rect x="216" width="96" height="148" rx="8" class="card"/>
+      <rect x="224" y="8" width="80" height="54" rx="6" fill="url(#olive)"/>
+      <text x="226" y="88" class="tiny ink">雨天室内</text>
+      <text x="226" y="108" class="tiny muted">坐下聊</text>
+    </g>
+    <g transform="translate(0 350)">
+      <text class="label accent">05 INPUT FOCUS / GENERATION KEYFRAMES</text>
+      <rect y="32" width="500" height="232" rx="28" class="screen" filter="url(#shadow)"/>
+      <rect y="32" width="500" height="232" rx="28" fill="#fff" opacity="0.16" filter="url(#paperNoise)"/>
+      <g transform="translate(32 70)">
+        <rect width="190" height="132" rx="12" class="card"/>
+        <text x="18" y="36" class="body ink">自己说一句</text>
+        <text x="18" y="68" class="small muted">今晚两个人，少走路</text>
+        <rect x="18" y="88" width="78" height="26" rx="13" class="button"/>
+        <text x="40" y="106" class="tiny" fill="#fffaf2">发送</text>
+      </g>
+      <g transform="translate(260 70)">
+        <rect width="190" height="132" rx="12" class="card"/>
+        <text x="18" y="34" class="label accent">PRINTING</text>
+        <circle cx="36" cy="74" r="8" fill="#9f5556"/>
+        <circle cx="88" cy="74" r="8" fill="#626f5e"/>
+        <circle cx="140" cy="74" r="8" fill="#d4a47b"/>
+        <line x1="44" y1="74" x2="80" y2="74" class="line"/>
+        <line x1="96" y1="74" x2="132" y2="74" class="line"/>
+        <text x="18" y="112" class="tiny muted">理解 · 筛选 · 剪成 · 打印</text>
+      </g>
+    </g>
+  </g>
+
+  <g transform="translate(72 930)">
+    <text class="label accent">DESIGN QA GATE</text>
+    <rect y="34" width="1750" height="112" rx="14" class="card"/>
+    <text x="28" y="76" class="body ink">必须通过：首屏至少 2 张路线卡、非卡片文字少于 40 个中文字符、卡片不等高、有票根纸感、没有转圈 loading。</text>
+    <text x="28" y="110" class="body muted">小屏不许单字换行；折叠屏卡片不拉宽；横屏 CTA 可见；结果页继承同一标题、城市和 3 站路线。</text>
+  </g>
+</svg>

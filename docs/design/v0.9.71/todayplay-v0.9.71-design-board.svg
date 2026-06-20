@@ -1,0 +1,263 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1320" viewBox="0 0 1920 1320">
+  <defs>
+    <filter id="paperNoise" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="2" seed="71" result="noise"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="table" tableValues="0 0.055"/>
+      </feComponentTransfer>
+      <feBlend mode="multiply" in2="SourceGraphic"/>
+    </filter>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#3b2a24" flood-opacity="0.16"/>
+    </filter>
+    <linearGradient id="paper" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#fbf7f0"/>
+      <stop offset="1" stop-color="#ece1d2"/>
+    </linearGradient>
+    <linearGradient id="dusk" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#d7bbb2"/>
+      <stop offset="0.48" stop-color="#876f68"/>
+      <stop offset="1" stop-color="#30302d"/>
+    </linearGradient>
+    <linearGradient id="olive" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#d4d0b7"/>
+      <stop offset="1" stop-color="#62705d"/>
+    </linearGradient>
+    <linearGradient id="rose" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#ead5d3"/>
+      <stop offset="1" stop-color="#b76668"/>
+    </linearGradient>
+    <style>
+      .bg { fill:#f5efe6; }
+      .ink { fill:#2e2724; }
+      .muted { fill:#837a72; }
+      .line { stroke:#d9cdbc; stroke-width:1.4; }
+      .hairline { stroke:#d3c5b4; stroke-width:1; }
+      .accent { fill:#9f5556; }
+      .olive { fill:#626f5e; }
+      .phone { fill:#1f1c1b; }
+      .screen { fill:url(#paper); }
+      .card { fill:#fffaf2; stroke:#ddd0be; stroke-width:1.2; }
+      .chip { fill:#f2eadf; stroke:#d9cdbc; stroke-width:1; }
+      .button { fill:#9f5556; }
+      .buttonText { fill:#fffaf2; }
+      .caption { font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif; font-size:18px; letter-spacing:0; }
+      .small { font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif; font-size:15px; letter-spacing:0; }
+      .tiny { font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif; font-size:12px; letter-spacing:0; }
+      .title { font-family:"Microsoft YaHei","Noto Sans CJK SC",Arial,sans-serif; font-size:34px; font-weight:700; letter-spacing:0; }
+      .serif { font-family:"Times New Roman","Songti SC",serif; letter-spacing:0; }
+      .label { font-family:Arial,"Microsoft YaHei",sans-serif; font-size:12px; letter-spacing:2px; }
+    </style>
+  </defs>
+
+  <rect width="1920" height="1320" class="bg"/>
+  <rect width="1920" height="1320" fill="#ffffff" opacity="0.34" filter="url(#paperNoise)"/>
+
+  <g transform="translate(72 58)">
+    <text class="label muted">TODAYPLAY V0.9.71 DESIGN BOARD</text>
+    <text x="0" y="64" class="serif ink" font-size="56">少字、瀑布流、票根纸感</text>
+    <text x="0" y="104" class="caption muted">先用路线卡吸引点击，再用一句话入口做个性化生成。首页不再解释产品，而是直接给用户可玩的卡。</text>
+  </g>
+
+  <g transform="translate(72 194)">
+    <rect x="0" y="0" width="166" height="52" rx="8" fill="#fffaf2" stroke="#ded0be"/>
+    <text x="24" y="33" class="small ink">暖纸白</text>
+    <rect x="184" y="0" width="166" height="52" rx="8" fill="#2e2724"/>
+    <text x="225" y="33" class="small" fill="#fffaf2">墨黑</text>
+    <rect x="368" y="0" width="166" height="52" rx="8" fill="#9f5556"/>
+    <text x="409" y="33" class="small" fill="#fffaf2">暗红</text>
+    <rect x="552" y="0" width="166" height="52" rx="8" fill="#626f5e"/>
+    <text x="593" y="33" class="small" fill="#fffaf2">橄榄</text>
+    <text x="756" y="33" class="small muted">强调色只占 5%-8%，卡牌靠层次和留白，不靠满屏标签。</text>
+  </g>
+
+  <g transform="translate(72 298)">
+    <text class="label accent">01 SPLASH / TICKET APPEARS</text>
+    <rect x="0" y="26" width="330" height="680" rx="48" class="phone" filter="url(#softShadow)"/>
+    <rect x="15" y="42" width="300" height="648" rx="38" class="screen"/>
+    <rect x="15" y="42" width="300" height="648" rx="38" fill="#fff" opacity="0.18" filter="url(#paperNoise)"/>
+    <text x="105" y="98" class="tiny muted">06.20  上海</text>
+    <g transform="translate(56 178)">
+      <path d="M22 0 H196 C196 18 214 18 214 36 V278 C214 296 196 296 196 314 H22 C22 296 4 296 4 278 V36 C4 18 22 18 22 0Z" fill="#fffaf2" stroke="#d9cdbc" stroke-width="2"/>
+      <line x1="26" y1="72" x2="192" y2="72" stroke="#cdbfab" stroke-dasharray="5 6"/>
+      <line x1="26" y1="244" x2="192" y2="244" stroke="#cdbfab" stroke-dasharray="5 6"/>
+      <text x="42" y="124" class="serif ink" font-size="38">TodayPlay</text>
+      <text x="54" y="158" class="small muted">今日路线卡</text>
+      <circle cx="107" cy="205" r="28" fill="#9f5556" opacity="0.15"/>
+      <path d="M78 208 C96 184 120 184 138 208" fill="none" stroke="#9f5556" stroke-width="3" stroke-linecap="round"/>
+      <text x="62" y="286" class="tiny muted">票根浮现 1200ms</text>
+    </g>
+    <text x="42" y="606" class="small ink">只保留品牌和一句短句</text>
+    <text x="42" y="632" class="tiny muted">进入首页时，票根扩展成首张卡</text>
+  </g>
+
+  <g transform="translate(456 298)">
+    <text class="label accent">02 HOME / WATERFALL ROUTE CARDS</text>
+    <rect x="0" y="26" width="330" height="680" rx="48" class="phone" filter="url(#softShadow)"/>
+    <rect x="15" y="42" width="300" height="648" rx="38" class="screen"/>
+    <rect x="15" y="42" width="300" height="648" rx="38" fill="#fff" opacity="0.16" filter="url(#paperNoise)"/>
+    <text x="38" y="94" class="caption ink">TodayPlay · 上海</text>
+    <text x="250" y="94" class="tiny muted">设置</text>
+    <g transform="translate(32 120)">
+      <rect x="0" y="0" width="54" height="28" rx="14" fill="#2e2724"/>
+      <text x="14" y="19" class="tiny" fill="#fffaf2">推荐</text>
+      <rect x="62" y="0" width="54" height="28" rx="14" class="chip"/>
+      <text x="76" y="19" class="tiny muted">约会</text>
+      <rect x="124" y="0" width="54" height="28" rx="14" class="chip"/>
+      <text x="138" y="19" class="tiny muted">朋友</text>
+      <rect x="186" y="0" width="54" height="28" rx="14" class="chip"/>
+      <text x="200" y="19" class="tiny muted">独处</text>
+      <rect x="0" y="38" width="54" height="28" rx="14" class="chip"/>
+      <text x="14" y="57" class="tiny muted">雨天</text>
+      <rect x="62" y="38" width="66" height="28" rx="14" class="chip"/>
+      <text x="76" y="57" class="tiny muted">低预算</text>
+      <rect x="136" y="38" width="66" height="28" rx="14" class="chip"/>
+      <text x="150" y="57" class="tiny muted">少走路</text>
+    </g>
+    <g transform="translate(32 204)">
+      <rect x="0" y="0" width="124" height="188" rx="8" class="card"/>
+      <rect x="10" y="10" width="104" height="80" rx="6" fill="url(#dusk)"/>
+      <path d="M20 72 C42 45 64 70 84 48 C96 36 104 48 112 38" fill="none" stroke="#fffaf2" stroke-width="2" opacity="0.82"/>
+      <text x="12" y="116" class="small ink">黄昏散步</text>
+      <text x="12" y="140" class="tiny muted">上海 · 2h · 100内</text>
+      <text x="12" y="162" class="tiny olive">3 站 · 少走路</text>
+
+      <rect x="138" y="0" width="124" height="150" rx="8" class="card"/>
+      <rect x="148" y="10" width="104" height="58" rx="6" fill="url(#rose)"/>
+      <path d="M166 50 L198 28 L236 54" fill="none" stroke="#fffaf2" stroke-width="2"/>
+      <text x="150" y="94" class="small ink">电影打卡</text>
+      <text x="150" y="118" class="tiny muted">上海 · 90m</text>
+      <text x="150" y="138" class="tiny olive">票根路线</text>
+
+      <rect x="138" y="168" width="124" height="190" rx="8" class="card"/>
+      <rect x="148" y="178" width="104" height="82" rx="6" fill="url(#olive)"/>
+      <circle cx="174" cy="218" r="8" fill="#fffaf2" opacity="0.82"/>
+      <circle cx="216" cy="198" r="6" fill="#fffaf2" opacity="0.7"/>
+      <path d="M174 218 C190 210 200 204 216 198" fill="none" stroke="#fffaf2" stroke-width="2" stroke-dasharray="4 5"/>
+      <text x="150" y="286" class="small ink">雨天室内</text>
+      <text x="150" y="310" class="tiny muted">上海 · 2h</text>
+      <text x="150" y="332" class="tiny olive">坐下聊天</text>
+
+      <rect x="0" y="210" width="124" height="148" rx="8" class="card"/>
+      <rect x="10" y="220" width="104" height="56" rx="6" fill="#d8cab7"/>
+      <line x1="24" y1="248" x2="100" y2="248" stroke="#9f5556" stroke-width="2"/>
+      <circle cx="36" cy="248" r="5" fill="#9f5556"/>
+      <circle cx="76" cy="248" r="5" fill="#626f5e"/>
+      <text x="12" y="302" class="small ink">低预算聊</text>
+      <text x="12" y="326" class="tiny muted">100 内 · 3 站</text>
+    </g>
+    <rect x="105" y="642" width="140" height="34" rx="17" class="button"/>
+    <text x="144" y="664" class="tiny buttonText">自己说一句</text>
+  </g>
+
+  <g transform="translate(840 298)">
+    <text class="label accent">03 CARD DETAIL / TICKET EXPANDS</text>
+    <rect x="0" y="26" width="330" height="680" rx="48" class="phone" filter="url(#softShadow)"/>
+    <rect x="15" y="42" width="300" height="648" rx="38" class="screen"/>
+    <rect x="15" y="42" width="300" height="648" rx="38" fill="#fff" opacity="0.16" filter="url(#paperNoise)"/>
+    <text x="36" y="94" class="tiny muted">返回</text>
+    <text x="123" y="94" class="caption ink">路线卡</text>
+    <g transform="translate(36 122)">
+      <path d="M18 0 H240 C240 16 256 16 256 32 V236 C256 252 240 252 240 268 H18 C18 252 2 252 2 236 V32 C2 16 18 16 18 0Z" fill="#fffaf2" stroke="#d9cdbc" stroke-width="1.5"/>
+      <rect x="18" y="18" width="222" height="100" rx="7" fill="url(#dusk)"/>
+      <text x="26" y="150" class="serif ink" font-size="30">黄昏散步局</text>
+      <text x="28" y="180" class="tiny muted">上海 · 今晚 2h · 100 内</text>
+      <text x="28" y="210" class="tiny olive">适合慢走 / 少解释 / 好收尾</text>
+      <line x1="28" y1="232" x2="230" y2="232" stroke="#cdbfab" stroke-dasharray="5 6"/>
+      <text x="28" y="252" class="tiny muted">来源：本地样例，真实营业状态待核验</text>
+    </g>
+    <g transform="translate(36 430)">
+      <text x="0" y="0" class="label muted">THREE STOPS</text>
+      <circle cx="14" cy="42" r="12" fill="#9f5556"/>
+      <text x="10" y="46" class="tiny" fill="#fffaf2">1</text>
+      <text x="38" y="48" class="small ink">武康路街角</text>
+      <circle cx="14" cy="94" r="12" fill="#626f5e"/>
+      <text x="10" y="98" class="tiny" fill="#fffaf2">2</text>
+      <text x="38" y="100" class="small ink">小店坐下聊</text>
+      <circle cx="14" cy="146" r="12" fill="#d4a47b"/>
+      <text x="10" y="150" class="tiny" fill="#fffaf2">3</text>
+      <text x="38" y="152" class="small ink">外滩收尾照</text>
+    </g>
+    <rect x="36" y="608" width="122" height="38" rx="19" class="button"/>
+    <text x="84" y="632" class="small buttonText">开始</text>
+    <rect x="174" y="608" width="64" height="38" rx="19" class="chip"/>
+    <text x="192" y="632" class="small muted">保存</text>
+    <rect x="248" y="608" width="52" height="38" rx="19" class="chip"/>
+    <text x="260" y="632" class="small muted">邀约</text>
+  </g>
+
+  <g transform="translate(1224 298)">
+    <text class="label accent">04 ROUTE / PAPER REVEAL</text>
+    <rect x="0" y="26" width="330" height="680" rx="48" class="phone" filter="url(#softShadow)"/>
+    <rect x="15" y="42" width="300" height="648" rx="38" class="screen"/>
+    <rect x="15" y="42" width="300" height="648" rx="38" fill="#fff" opacity="0.16" filter="url(#paperNoise)"/>
+    <text x="42" y="96" class="caption ink">已剪成你的路线</text>
+    <text x="42" y="124" class="tiny muted">同一标题 · 同一城市 · 同一 3 站</text>
+    <g transform="translate(38 158)">
+      <rect x="0" y="0" width="254" height="156" rx="14" fill="#fffaf2" stroke="#d9cdbc"/>
+      <text x="18" y="34" class="label accent">MAP ROUTE</text>
+      <path d="M44 106 C84 42 142 132 210 56" fill="none" stroke="#9f5556" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="44" cy="106" r="9" fill="#9f5556"/>
+      <circle cx="128" cy="92" r="8" fill="#626f5e"/>
+      <circle cx="210" cy="56" r="8" fill="#d4a47b"/>
+      <text x="20" y="138" class="tiny muted">先看顺序，再导航当前站</text>
+    </g>
+    <g transform="translate(38 350)">
+      <text x="0" y="0" class="label muted">LIVE MODE</text>
+      <rect x="0" y="24" width="254" height="112" rx="14" class="card"/>
+      <text x="18" y="58" class="tiny accent">当前站 01</text>
+      <text x="18" y="88" class="caption ink">武康路街角</text>
+      <text x="18" y="116" class="tiny muted">少走路，适合先进入状态</text>
+      <rect x="144" y="76" width="86" height="34" rx="17" class="button"/>
+      <text x="164" y="98" class="tiny buttonText">导航</text>
+    </g>
+    <g transform="translate(38 530)">
+      <rect x="0" y="0" width="70" height="26" rx="13" fill="#2e2724"/>
+      <text x="16" y="18" class="tiny" fill="#fffaf2">换一幕</text>
+      <rect x="82" y="0" width="70" height="26" rx="13" class="chip"/>
+      <text x="98" y="18" class="tiny muted">更安静</text>
+      <rect x="164" y="0" width="70" height="26" rx="13" class="chip"/>
+      <text x="180" y="18" class="tiny muted">更便宜</text>
+    </g>
+    <g transform="translate(38 600)">
+      <circle cx="14" cy="14" r="8" fill="#9f5556"/>
+      <circle cx="84" cy="14" r="8" fill="#cdbfab"/>
+      <circle cx="154" cy="14" r="8" fill="#cdbfab"/>
+      <circle cx="224" cy="14" r="8" fill="#cdbfab"/>
+      <line x1="22" y1="14" x2="76" y2="14" stroke="#d9cdbc" stroke-width="2"/>
+      <line x1="92" y1="14" x2="146" y2="14" stroke="#d9cdbc" stroke-width="2"/>
+      <line x1="162" y1="14" x2="216" y2="14" stroke="#d9cdbc" stroke-width="2"/>
+      <text x="0" y="44" class="tiny muted">理解 · 筛选 · 剪成 · 打印</text>
+    </g>
+  </g>
+
+  <g transform="translate(72 1080)">
+    <text class="label accent">INTERACTION FLOW</text>
+    <g transform="translate(0 36)">
+      <rect x="0" y="0" width="310" height="86" rx="12" class="card"/>
+      <text x="26" y="36" class="caption ink">1. 刷卡</text>
+      <text x="26" y="62" class="tiny muted">首屏至少露出 2 张路线卡</text>
+      <path d="M310 43 H366" class="line"/>
+      <rect x="386" y="0" width="310" height="86" rx="12" class="card"/>
+      <text x="412" y="36" class="caption ink">2. 点卡</text>
+      <text x="412" y="62" class="tiny muted">卡片放大，标题和站点保留</text>
+      <path d="M696 43 H752" class="line"/>
+      <rect x="772" y="0" width="310" height="86" rx="12" class="card"/>
+      <text x="798" y="36" class="caption ink">3. 显影</text>
+      <text x="798" y="62" class="tiny muted">不用转圈，纸张压印和路线点亮</text>
+      <path d="M1082 43 H1138" class="line"/>
+      <rect x="1158" y="0" width="310" height="86" rx="12" class="card"/>
+      <text x="1184" y="36" class="caption ink">4. 票根</text>
+      <text x="1184" y="62" class="tiny muted">结果页像今日电影票</text>
+      <path d="M1468 43 H1524" class="line"/>
+      <rect x="1544" y="0" width="260" height="86" rx="12" class="card"/>
+      <text x="1570" y="36" class="caption ink">5. 当前站</text>
+      <text x="1570" y="62" class="tiny muted">地图草图 + 导航动作</text>
+    </g>
+  </g>
+
+  <g transform="translate(72 1248)">
+    <text class="small muted">Design gate: 首屏少于 40 个非卡片中文字，卡牌有视觉图、城市、时间、预算、移动强度、3 站预览和开始按钮。截图低于 7/10 不进入开发。</text>
+  </g>
+</svg>
