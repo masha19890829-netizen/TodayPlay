@@ -122,7 +122,7 @@ fun HomeScreen(
     recentRecords: List<QuestRecord> = emptyList(),
     onReplayRecent: (QuestRecord) -> Unit = {},
 ) {
-    ChatFirstHomeExperience(
+    V0971RouteCardHomeExperience(
         locale = selectedLocale,
         onHistory = onHistory,
         onSettings = onPrivacy,
@@ -458,6 +458,714 @@ private fun ChatFirstCompanionIntro(compact: Boolean) {
             )
         }
     }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun V0971RouteCardHomeExperience(
+    locale: TodayPlayLocale,
+    onHistory: () -> Unit,
+    onSettings: () -> Unit,
+    onSaved: () -> Unit,
+    onGenerate: (QuestInput) -> Unit,
+    recentRecords: List<QuestRecord>,
+    onReplayRecent: (QuestRecord) -> Unit,
+) {
+    val strings = LocalTodayPlayStrings.current
+    val copy = discoveryHomeCopy(locale)
+    val relations = homeRelationOptions(strings)
+    val feedItems = remember(strings) { homeDiscoveryFeed(strings) }
+    var selectedScenario by rememberSaveable { mutableStateOf("all") }
+    var promptOpen by rememberSaveable { mutableStateOf(false) }
+    var feedShift by rememberSaveable { mutableIntStateOf(0) }
+    var savedRouteKeys by rememberSaveable { mutableStateOf("") }
+    val visibleFeed = remember(selectedScenario, feedItems, relations) {
+        v0971FilterFeed(feedItems, selectedScenario, relations).ifEmpty { feedItems }
+    }
+    val shiftedFeed = remember(visibleFeed, feedShift) {
+        if (visibleFeed.isEmpty()) {
+            visibleFeed
+        } else {
+            val offset = feedShift.mod(visibleFeed.size)
+            visibleFeed.drop(offset) + visibleFeed.take(offset)
+        }
+    }
+    val savedSet = savedRouteKeys.split("|").filter { it.isNotBlank() }.toSet()
+    val toggleSaved: (String) -> Unit = { routeId ->
+        savedRouteKeys = if (routeId in savedSet) {
+            savedSet.filterNot { it == routeId }.joinToString("|")
+        } else {
+            (savedSet + routeId).joinToString("|")
+        }
+    }
+
+    PaperBackground {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding(),
+        ) {
+            val compact = maxWidth < 390.dp || maxHeight < 700.dp
+            val wide = maxWidth >= 720.dp
+            val landscape = maxWidth > maxHeight
+            val pagePadding = when {
+                maxWidth < 360.dp -> 16.dp
+                landscape -> 18.dp
+                else -> 22.dp
+            }
+            val topFeed = shiftedFeed.take(if (wide) 6 else 4)
+            val restFeed = shiftedFeed.drop(topFeed.size).take(if (wide) 8 else 6)
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = pagePadding,
+                    end = pagePadding,
+                    top = pagePadding,
+                    bottom = if (promptOpen) 220.dp else 92.dp,
+                ),
+                verticalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                item {
+                    V0971HomeTopBar(
+                        city = "同城",
+                        onHistory = onHistory,
+                        onSettings = onSettings,
+                        compact = compact,
+                    )
+                }
+                item {
+                    V0971ScenarioChips(
+                        selectedScenario = selectedScenario,
+                        onSelectedScenario = { selectedScenario = it },
+                        onShuffle = { feedShift += 1 },
+                        compact = compact,
+                    )
+                }
+                item {
+                    V0971WaterfallFeed(
+                        items = topFeed,
+                        copy = copy,
+                        savedRouteKeys = savedSet,
+                        onToggleSaved = toggleSaved,
+                        onGenerate = onGenerate,
+                        forceTwoColumns = true,
+                    )
+                }
+                if (recentRecords.isNotEmpty() && selectedScenario == "all") {
+                    item {
+                        V0971RecentRouteTicket(
+                            record = recentRecords.first(),
+                            onReplayRecent = onReplayRecent,
+                        )
+                    }
+                }
+                if (restFeed.isNotEmpty()) {
+                    item {
+                        V0971WaterfallFeed(
+                            items = restFeed,
+                            copy = copy,
+                            savedRouteKeys = savedSet,
+                            onToggleSaved = toggleSaved,
+                            onGenerate = onGenerate,
+                            forceTwoColumns = wide || !compact,
+                        )
+                    }
+                }
+            }
+            if (promptOpen) {
+                V0971SelfPromptPanel(
+                    baseInput = visibleFeed.firstOrNull()?.input ?: relations.first().input,
+                    onDismiss = { promptOpen = false },
+                    onGenerate = {
+                        promptOpen = false
+                        onGenerate(it)
+                    },
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+            } else {
+                V0971FloatingPromptButton(
+                    text = "自己说一句",
+                    onClick = { promptOpen = true },
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun V0971HomeTopBar(
+    city: String,
+    onHistory: () -> Unit,
+    onSettings: () -> Unit,
+    compact: Boolean,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = 820.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = "TodayPlay · $city",
+            color = InkBlack,
+            style = if (compact) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = "历史",
+            color = WarmGray,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            modifier = Modifier
+                .clip(RoundedCornerShape(999.dp))
+                .clickable { onHistory() }
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+        )
+        Text(
+            text = "设置",
+            color = WarmGray,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            modifier = Modifier
+                .clip(RoundedCornerShape(999.dp))
+                .clickable { onSettings() }
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun V0971ScenarioChips(
+    selectedScenario: String,
+    onSelectedScenario: (String) -> Unit,
+    onShuffle: () -> Unit,
+    compact: Boolean,
+) {
+    val chips = listOf(
+        "all" to "推荐",
+        "date" to "约会",
+        "friends" to "朋友",
+        "solo" to "独处",
+        "rain" to "雨天",
+        "budget" to "低预算",
+        "less-walk" to "少走路",
+    )
+    FlowRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = 820.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        chips.forEach { (key, label) ->
+            V0971FilterChip(
+                text = label,
+                selected = selectedScenario == key,
+                onClick = { onSelectedScenario(key) },
+            )
+        }
+        V0971FilterChip(
+            text = "换一幕",
+            selected = false,
+            onClick = onShuffle,
+        )
+    }
+}
+
+@Composable
+private fun V0971FilterChip(text: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .heightIn(min = 32.dp)
+            .clip(RoundedCornerShape(999.dp))
+            .background(if (selected) BlackCherry else GalleryWhite.copy(alpha = 0.78f))
+            .border(1.dp, if (selected) BlackCherry else LineBeige, RoundedCornerShape(999.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 13.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            color = if (selected) GalleryWhite else WarmGray,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun V0971WaterfallFeed(
+    items: List<RouteFeedItem>,
+    copy: DiscoveryHomeCopy,
+    savedRouteKeys: Set<String>,
+    onToggleSaved: (String) -> Unit,
+    onGenerate: (QuestInput) -> Unit,
+    forceTwoColumns: Boolean,
+) {
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = 860.dp),
+    ) {
+        val useTwoColumns = forceTwoColumns && maxWidth >= 318.dp
+        if (useTwoColumns) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items.filterIndexed { index, _ -> index % 2 == 0 }.forEachIndexed { localIndex, item ->
+                        V0971RouteTicketCard(
+                            item = item,
+                            copy = copy,
+                            saved = item.id in savedRouteKeys,
+                            tall = localIndex % 2 == 0,
+                            onToggleSaved = { onToggleSaved(item.id) },
+                            onGenerate = { onGenerate(item.input.v0971RouteCardInput(item.title, item.reason)) },
+                        )
+                    }
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items.filterIndexed { index, _ -> index % 2 == 1 }.forEachIndexed { localIndex, item ->
+                        V0971RouteTicketCard(
+                            item = item,
+                            copy = copy,
+                            saved = item.id in savedRouteKeys,
+                            tall = localIndex % 2 == 1,
+                            onToggleSaved = { onToggleSaved(item.id) },
+                            onGenerate = { onGenerate(item.input.v0971RouteCardInput(item.title, item.reason)) },
+                        )
+                    }
+                }
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                items.forEachIndexed { index, item ->
+                    V0971RouteTicketCard(
+                        item = item,
+                        copy = copy,
+                        saved = item.id in savedRouteKeys,
+                        tall = index % 2 == 0,
+                        onToggleSaved = { onToggleSaved(item.id) },
+                        onGenerate = { onGenerate(item.input.v0971RouteCardInput(item.title, item.reason)) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun V0971RouteTicketCard(
+    item: RouteFeedItem,
+    copy: DiscoveryHomeCopy,
+    saved: Boolean,
+    tall: Boolean,
+    onToggleSaved: () -> Unit,
+    onGenerate: () -> Unit,
+) {
+    val visualHeight = if (tall) 92.dp else 68.dp
+    TicketCard {
+        V0971TicketVisual(
+            item = item,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(visualHeight),
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = item.title.v0971ShortTitle(),
+            color = InkBlack,
+            style = MaterialTheme.typography.titleSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(5.dp))
+        Text(
+            text = item.input.v0971MetaLine(),
+            color = WarmGray,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(5.dp))
+        Text(
+            text = item.input.v0971MobilityLine(),
+            color = WarmGray,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(5.dp))
+        Text(
+            text = "${item.contentStatus} · ${item.sourceStatus}",
+            color = CherryPressed,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(8.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            item.routeStops.take(3).forEachIndexed { index, stop ->
+                V0971StopDot(index = index, text = stop)
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            V0971MiniAction(text = copy.start, primary = true, onClick = onGenerate, modifier = Modifier.weight(1f))
+            V0971MiniAction(text = if (saved) "已存" else "保存", onClick = onToggleSaved, modifier = Modifier.weight(1f))
+            V0971MiniAction(text = "邀约", onClick = onGenerate, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun V0971TicketVisual(item: RouteFeedItem, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(LineBeige)
+            .border(1.dp, LineBeige, RoundedCornerShape(8.dp)),
+    ) {
+        Image(
+            painter = painterResource(item.imageRes),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0f to GalleryWhite.copy(alpha = 0.22f),
+                        1f to BlackCherry.copy(alpha = 0.42f),
+                    ),
+                ),
+        )
+        Canvas(Modifier.fillMaxSize()) {
+            val baseline = size.height * 0.62f
+            val first = Offset(size.width * 0.16f, baseline)
+            val second = Offset(size.width * 0.50f, size.height * 0.42f)
+            val third = Offset(size.width * 0.82f, size.height * 0.55f)
+            listOf(first to second, second to third).forEach { (start, end) ->
+                drawLine(
+                    color = GalleryWhite.copy(alpha = 0.78f),
+                    start = start,
+                    end = end,
+                    strokeWidth = 3.2f,
+                    cap = StrokeCap.Round,
+                )
+            }
+            listOf(first, second, third).forEachIndexed { index, point ->
+                drawCircle(
+                    color = if (index == 0) CherryPressed else RoseGold,
+                    radius = if (index == 0) 6.5f else 5.5f,
+                    center = point,
+                )
+                drawCircle(
+                    color = GalleryWhite.copy(alpha = 0.9f),
+                    radius = 2.2f,
+                    center = point,
+                )
+            }
+        }
+        Text(
+            text = item.imageLabel,
+            color = GalleryWhite,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(8.dp),
+        )
+    }
+}
+
+@Composable
+private fun V0971StopDot(index: Int, text: String) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(GalleryWhite.copy(alpha = 0.78f))
+            .border(1.dp, LineBeige, RoundedCornerShape(999.dp))
+            .padding(horizontal = 6.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(15.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(if (index == 0) CherryPressed else RoseGold),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text((index + 1).toString(), color = GalleryWhite, style = MaterialTheme.typography.labelSmall)
+        }
+        Text(
+            text = text,
+            color = InkBlack,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = 92.dp),
+        )
+    }
+}
+
+@Composable
+private fun V0971MiniAction(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    primary: Boolean = false,
+) {
+    Box(
+        modifier = modifier
+            .heightIn(min = 34.dp)
+            .clip(RoundedCornerShape(999.dp))
+            .background(if (primary) CherryPressed else GalleryWhite.copy(alpha = 0.78f))
+            .border(1.dp, if (primary) CherryPressed else LineBeige, RoundedCornerShape(999.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            color = if (primary) GalleryWhite else WarmGray,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun V0971RecentRouteTicket(
+    record: QuestRecord,
+    onReplayRecent: (QuestRecord) -> Unit,
+) {
+    val plan = record.quest.itineraryPlan
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = 820.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(GalleryWhite.copy(alpha = 0.74f))
+            .border(1.dp, LineBeige, RoundedCornerShape(10.dp))
+            .clickable { onReplayRecent(record) }
+            .padding(14.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text("最近路线", color = InkBlack, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+            Text(
+                text = listOfNotNull(plan?.title, plan?.city, plan?.estimatedDuration)
+                    .filter { it.isNotBlank() }
+                    .joinToString(" · ")
+                    .ifBlank { record.quest.title },
+                color = WarmGray,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun V0971FloatingPromptButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .padding(bottom = 20.dp)
+            .widthIn(min = 150.dp)
+            .heightIn(min = 42.dp)
+            .clip(RoundedCornerShape(999.dp))
+            .background(CherryPressed)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 24.dp, vertical = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            color = GalleryWhite,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun V0971SelfPromptPanel(
+    baseInput: QuestInput,
+    onDismiss: () -> Unit,
+    onGenerate: (QuestInput) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var freeText by rememberSaveable { mutableStateOf("") }
+    var selectedChipKeys by rememberSaveable { mutableStateOf("chat|budget") }
+    val chips = aiIntentChips()
+    val selected = selectedChipKeys.split("|").filter { it.isNotBlank() }.toSet()
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(18.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(GalleryWhite.copy(alpha = 0.96f))
+            .border(1.dp, LineBeige, RoundedCornerShape(22.dp))
+            .padding(18.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "自己说一句",
+                    color = InkBlack,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = "收起",
+                    color = WarmGray,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .clickable(onClick = onDismiss)
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                )
+            }
+            OutlinedTextField(
+                value = freeText,
+                onValueChange = { freeText = it.take(80) },
+                placeholder = { Text("今晚两个人，少走路，100 内", color = WarmGray) },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2,
+                maxLines = 3,
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                verticalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                chips.forEach { chip ->
+                    V0971FilterChip(
+                        text = chip.label,
+                        selected = chip.key in selected,
+                        onClick = {
+                            selectedChipKeys = if (chip.key in selected) {
+                                (selected - chip.key).joinToString("|")
+                            } else {
+                                (selected + chip.key).joinToString("|")
+                            }
+                        },
+                    )
+                }
+            }
+            V0971MiniAction(
+                text = "发送",
+                primary = true,
+                onClick = {
+                    val selectedChips = chips.filter { it.key in selected }
+                    onGenerate(buildAiIntentInput(baseInput, freeText, selectedChips))
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+private data class V0971Scenario(
+    val key: String,
+    val matcher: (RouteFeedItem, List<HomeRelationOption>) -> Boolean,
+)
+
+private fun v0971FilterFeed(
+    feedItems: List<RouteFeedItem>,
+    selectedScenario: String,
+    relations: List<HomeRelationOption>,
+): List<RouteFeedItem> {
+    val scenarios = listOf(
+        V0971Scenario("all") { _, _ -> true },
+        V0971Scenario("date") { item, relationOptions ->
+            item.scenarioKey in setOf(
+                relationOptions.getOrNull(0)?.key,
+                relationOptions.getOrNull(1)?.key,
+            )
+        },
+        V0971Scenario("friends") { item, relationOptions -> item.scenarioKey == relationOptions.getOrNull(2)?.key },
+        V0971Scenario("solo") { item, relationOptions -> item.scenarioKey == relationOptions.getOrNull(4)?.key },
+        V0971Scenario("rain") { item, _ -> item.v0971SearchText().contains("雨") || item.v0971SearchText().contains("室内") },
+        V0971Scenario("budget") { item, _ -> item.v0971SearchText().contains("低预算") || item.v0971SearchText().contains("100") || item.v0971SearchText().contains("50") },
+        V0971Scenario("less-walk") { item, _ -> item.v0971SearchText().contains("少走") || item.v0971SearchText().contains("轻走") || item.v0971SearchText().contains("慢走") },
+    )
+    val matcher = scenarios.firstOrNull { it.key == selectedScenario }?.matcher ?: scenarios.first().matcher
+    return feedItems.filter { item -> matcher(item, relations) }
+}
+
+private fun RouteFeedItem.v0971SearchText(): String {
+    return buildString {
+        append(title)
+        append(reason)
+        append(chips.joinToString(""))
+        append(routeStops.joinToString(""))
+        append(input.moods.joinToString(""))
+        append(input.budget)
+        append(input.note.orEmpty())
+    }
+}
+
+private fun QuestInput.v0971MetaLine(): String {
+    val cityName = city?.takeIf { it.isNotBlank() } ?: "同城"
+    return listOf(cityName, time, budget).filter { it.isNotBlank() }.joinToString(" · ")
+}
+
+private fun QuestInput.v0971MobilityLine(): String {
+    return when {
+        moods.any { it.contains("不想走") || it.contains("少走") || it.contains("累") } -> "3站 · 少走路"
+        transportMode.contains("打车") -> "3站 · 可打车"
+        else -> "3站 · 同区轻走"
+    }
+}
+
+private fun QuestInput.v0971RouteCardInput(title: String, reason: String): QuestInput {
+    return copy(
+        note = listOfNotNull(
+            "V0.9.71 route-card-start: $title",
+            reason.takeIf { it.isNotBlank() },
+            note,
+        ).joinToString("。"),
+    )
+}
+
+private fun String.v0971ShortTitle(): String {
+    return if (length <= 12) this else take(11) + "…"
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -2924,6 +3632,8 @@ private data class RouteFeedItem(
     val imageLabel: String,
     val imageRes: Int,
     val imageHeight: Dp,
+    val contentStatus: String,
+    val sourceStatus: String,
     val input: QuestInput,
 )
 
@@ -3045,6 +3755,8 @@ private fun homeDiscoveryFeed(strings: TodayPlayStrings): List<RouteFeedItem> {
             imageLabel = item.input.city ?: relations[relationIndex].label,
             imageRes = imageCycle[index % imageCycle.size],
             imageHeight = heightCycle[index % heightCycle.size],
+            contentStatus = "本地样例",
+            sourceStatus = "本地样例 POI",
             input = item.input,
         )
     }
@@ -3078,6 +3790,8 @@ private fun homeDiscoveryFeed(strings: TodayPlayStrings): List<RouteFeedItem> {
             imageLabel = item.city,
             imageRes = imageCycle[(index + imageOffset) % imageCycle.size],
             imageHeight = heightCycle[(index + imageOffset) % heightCycle.size],
+            contentStatus = item.contentStatus,
+            sourceStatus = item.sourceStatus,
             input = item.input,
         )
     }
@@ -3121,6 +3835,8 @@ private fun homeDiscoveryFeed(strings: TodayPlayStrings): List<RouteFeedItem> {
             imageLabel = item.city,
             imageRes = imageCycle[(index + 1) % imageCycle.size],
             imageHeight = heightCycle[(index + 2) % heightCycle.size],
+            contentStatus = item.contentStatus,
+            sourceStatus = item.sourceStatus,
             input = item.input,
         )
     }

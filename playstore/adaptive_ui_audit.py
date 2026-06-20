@@ -57,17 +57,30 @@ def main() -> int:
             "Home screen width classes",
             "BoxWithConstraints" in home_text
             and "val wide = maxWidth >= 720.dp" in home_text
-            and "val compact = maxHeight < 720.dp" in home_text,
+            and ("val compact = maxHeight < 720.dp" in home_text or "val compact = maxWidth < 390.dp || maxHeight < 700.dp" in home_text),
             str(home),
             "Home should switch between phone, compact-height, and wide/tablet layouts.",
         ),
         (
             "Home scrollable compact layout",
             "LazyColumn" in home_text
-            and "contentPadding = PaddingValues(pagePadding)" in home_text
+            and ("contentPadding = PaddingValues(pagePadding)" in home_text or "contentPadding = PaddingValues(" in home_text)
             and "horizontalAlignment = Alignment.CenterHorizontally" in home_text,
             str(home),
             "Compact home layout must scroll instead of compressing content.",
+        ),
+        (
+            "V0.9.71 route-card home avoids small-screen text wall",
+            "V0971RouteCardHomeExperience" in home_text
+            and "V0971WaterfallFeed" in home_text
+            and "V0971RouteTicketCard" in home_text
+            and "val useTwoColumns = forceTwoColumns && maxWidth >= 318.dp" in home_text
+            and "TextOverflow.Ellipsis" in home_text
+            and "自己说一句" in home_text
+            and "换一幕" in home_text
+            and "本地样例 POI" in home_text,
+            str(home),
+            "The new home should show tappable route cards before explanatory text, keep free-text input secondary, and clamp labels on phone, foldable, and landscape screens.",
         ),
         (
             "Card flow width classes",

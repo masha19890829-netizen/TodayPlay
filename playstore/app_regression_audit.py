@@ -86,9 +86,9 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         })
 
     add(
-        "V0.9.70 cinematic personalization and adaptive text version metadata",
-        'versionName = "0.9.70"' in build_gradle and "versionCode = 87" in build_gradle,
-        "expected versionName=0.9.70 and versionCode=87",
+        "V0.9.71 route-card-first version metadata",
+        'versionName = "0.9.71"' in build_gradle and "versionCode = 88" in build_gradle,
+        "expected versionName=0.9.71 and versionCode=88",
         "Keep every external-test APK versioned independently so testers never install an ambiguous build.",
     )
 
@@ -195,6 +195,46 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         has_all(home_screen + result_screen + loading_screen + route_interpreter, v0970_cinematic_tokens),
         f"tokens={v0970_cinematic_tokens}",
         "Keep the chat-first generation moment feeling like a personalized director cut: visible AI understanding, staggered candidate cards, and a ticket-style result cover that inherits the selected route strategy.",
+    )
+
+    v0971_route_card_home_tokens = [
+        "V0971RouteCardHomeExperience",
+        "V0971WaterfallFeed",
+        "V0971RouteTicketCard",
+        "V0971TicketVisual",
+        "V0971SelfPromptPanel",
+        "V0971FloatingPromptButton",
+        "自己说一句",
+        "换一幕",
+        "推荐",
+        "约会",
+        "朋友",
+        "独处",
+        "雨天",
+        "低预算",
+        "少走路",
+        "TodayPlay · $city",
+        "val useTwoColumns = forceTwoColumns && maxWidth >= 318.dp",
+    ]
+    v0971_card_truth_tokens = [
+        "contentStatus: String",
+        "sourceStatus: String",
+        "本地样例 POI",
+        "待核验样例",
+        "item.contentStatus",
+        "item.sourceStatus",
+        "v0971RouteCardInput",
+        "v0971MetaLine",
+        "v0971MobilityLine",
+    ]
+    add(
+        "V0.9.71 route-card-first home path",
+        home_screen.find("V0971RouteCardHomeExperience(") < home_screen.find("ChatFirstHomeExperience(")
+        and has_all(home_screen, v0971_route_card_home_tokens)
+        and has_all(home_screen + home_route_content, v0971_card_truth_tokens)
+        and "TodayPlayLocale.entries.forEach" not in home_screen[:home_screen.find("return")],
+        f"homeTokens={v0971_route_card_home_tokens}; truthTokens={v0971_card_truth_tokens}",
+        "Keep the first screen as tappable waterfall route cards with short chips, shuffle, local sample/source labels, and the free-text prompt as a secondary floating action.",
     )
 
     ai_boundary_tokens = [
