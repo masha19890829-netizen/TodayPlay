@@ -9,9 +9,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED_FILES = [
     "DESIGN_INTERACTION_BLUEPRINT_V0_9_71_2026-06-20.md",
+    "DESIGN_INTERACTION_BLUEPRINT_V0_9_73_2026-06-23.md",
     "docs/design/v0.9.71/DESIGN_REVIEW_V0_9_71_2026-06-20.md",
     "docs/design/v0.9.71/MOTION_INTERACTION_SPEC_V0_9_71_2026-06-20.md",
     "docs/design/v0.9.71/ANDROID_HANDOFF_V0_9_71_2026-06-20.md",
+    "docs/design/v0.9.73/DESIGN_REVIEW_V0_9_73_2026-06-23.md",
+    "docs/design/v0.9.73/MOTION_INTERACTION_SPEC_V0_9_73_2026-06-23.md",
+    "docs/design/v0.9.73/ANDROID_HANDOFF_V0_9_73_2026-06-23.md",
+    "docs/design/v0.9.73/todayplay-v0.9.73-quiet-waterfall-board.svg",
+    "docs/design/v0.9.73/todayplay-v0.9.73-quiet-waterfall-board.png",
     "docs/design/v0.9.71/todayplay-v0.9.71-design-board.svg",
     "docs/design/v0.9.71/todayplay-v0.9.71-design-board.png",
     "docs/design/v0.9.71/todayplay-v0.9.71-responsive-states.svg",
@@ -42,6 +48,36 @@ REQUIRED_TOKENS = {
         "WaterfallRouteCard",
         "PaperRevealTransition",
         "结果页继承候选卡标题、城市、站点",
+    ],
+    "DESIGN_INTERACTION_BLUEPRINT_V0_9_73_2026-06-23.md": [
+        "首屏非卡片文字总量不超过 28 个中文字符",
+        "每张首屏卡最多 6 个可见信息点",
+        "生成后出现 3 张候选路线卡",
+        "任何 320dp、小屏、折叠屏外屏不得出现单字独占一行",
+        "V0.9.73 不允许只验证首页",
+    ],
+    "docs/design/v0.9.73/DESIGN_REVIEW_V0_9_73_2026-06-23.md": [
+        "Quiet Waterfall",
+        "卡片字段从“信息完整”改为“先吸引点击”",
+        "不让卡片同时显示 3 个等权文字按钮",
+    ],
+    "docs/design/v0.9.73/MOTION_INTERACTION_SPEC_V0_9_73_2026-06-23.md": [
+        "不使用转圈 loading",
+        "听懂今天",
+        "筛同城站点",
+        "剪成路线",
+    ],
+    "docs/design/v0.9.73/ANDROID_HANDOFF_V0_9_73_2026-06-23.md": [
+        "QuietRouteCard",
+        "OneSentencePromptSheet",
+        "PaperRouteRevealTransition",
+        "LiveRouteFirstScreen",
+        "结果页存在宽屏",
+    ],
+    "docs/design/v0.9.73/todayplay-v0.9.73-quiet-waterfall-board.svg": [
+        "少字、轻转场、静默瀑布流",
+        "自己说一句",
+        "MAP ROUTE",
     ],
 }
 
@@ -79,7 +115,8 @@ def main() -> int:
                     rows.append((relative, "pass", f"{width}x{height}"))
         else:
             text = path.read_text(encoding="utf-8")
-            if any(marker in text for marker in ["锛", "鈥", "�", "涓", "鐨"]):
+            text_for_mojibake_scan = text.replace("`�`", "").replace("`ï¿½`", "").replace("`����`", "")
+            if any(marker in text_for_mojibake_scan for marker in ["锛", "鈥", "�", "涓", "鐨"]):
                 rows.append((relative, "fail", "mojibake marker found"))
                 ok = False
             else:
