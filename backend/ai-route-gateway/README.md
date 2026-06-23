@@ -17,7 +17,7 @@ AI_PROVIDER=kimi
 KIMI_API_KEY=sk-...
 KIMI_BASE_URL=https://api.moonshot.cn/v1
 KIMI_MODEL=moonshot-v1-8k
-KIMI_TIMEOUT_MS=25000
+KIMI_TIMEOUT_MS=3000
 AI_GATEWAY_SHARED_SECRET=change-me-for-local-dev
 ```
 

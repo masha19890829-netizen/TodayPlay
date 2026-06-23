@@ -514,7 +514,13 @@ private fun V0971RouteCardHomeExperience(
                 landscape -> 18.dp
                 else -> 22.dp
             }
-            val topFeed = shiftedFeed.take(if (wide) 6 else 4)
+            val topFeed = shiftedFeed.take(
+                when {
+                    wide -> 6
+                    compact -> 2
+                    else -> 4
+                },
+            )
             val restFeed = shiftedFeed.drop(topFeed.size).take(if (wide) 8 else 6)
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -522,7 +528,11 @@ private fun V0971RouteCardHomeExperience(
                     start = pagePadding,
                     end = pagePadding,
                     top = pagePadding,
-                    bottom = if (promptOpen) 220.dp else 92.dp,
+                    bottom = when {
+                        promptOpen -> 220.dp
+                        compact -> 26.dp
+                        else -> 92.dp
+                    },
                 ),
                 verticalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -552,6 +562,15 @@ private fun V0971RouteCardHomeExperience(
                         onGenerate = onGenerate,
                         forceTwoColumns = true,
                     )
+                }
+                if (!promptOpen) {
+                    item {
+                        V0972CompactPromptEntry(
+                            text = "自己说一句",
+                            hint = "输入一句需求，生成自己的同城路线",
+                            onClick = { promptOpen = true },
+                        )
+                    }
                 }
                 if (recentRecords.isNotEmpty() && selectedScenario == "all") {
                     item {
@@ -584,14 +603,55 @@ private fun V0971RouteCardHomeExperience(
                     },
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
-            } else {
-                V0971FloatingPromptButton(
-                    text = "自己说一句",
-                    onClick = { promptOpen = true },
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                )
             }
         }
+    }
+}
+
+@Composable
+private fun V0972CompactPromptEntry(
+    text: String,
+    hint: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = 860.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(GalleryWhite.copy(alpha = 0.92f))
+            .border(1.dp, LineBeige, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = text,
+                color = InkBlack,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = hint,
+                color = WarmGray,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            text = "发送",
+            color = GalleryWhite,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            modifier = Modifier
+                .clip(RoundedCornerShape(999.dp))
+                .background(CherryPressed)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        )
     }
 }
 
@@ -732,7 +792,7 @@ private fun V0971WaterfallFeed(
                             saved = item.id in savedRouteKeys,
                             tall = localIndex % 2 == 0,
                             onToggleSaved = { onToggleSaved(item.id) },
-                            onGenerate = { onGenerate(item.input.v0971RouteCardInput(item.title, item.reason)) },
+                            onGenerate = { onGenerate(item.input.v0971RouteCardInput(item)) },
                         )
                     }
                 }
@@ -747,7 +807,7 @@ private fun V0971WaterfallFeed(
                             saved = item.id in savedRouteKeys,
                             tall = localIndex % 2 == 1,
                             onToggleSaved = { onToggleSaved(item.id) },
-                            onGenerate = { onGenerate(item.input.v0971RouteCardInput(item.title, item.reason)) },
+                            onGenerate = { onGenerate(item.input.v0971RouteCardInput(item)) },
                         )
                     }
                 }
@@ -761,7 +821,7 @@ private fun V0971WaterfallFeed(
                         saved = item.id in savedRouteKeys,
                         tall = index % 2 == 0,
                         onToggleSaved = { onToggleSaved(item.id) },
-                        onGenerate = { onGenerate(item.input.v0971RouteCardInput(item.title, item.reason)) },
+                        onGenerate = { onGenerate(item.input.v0971RouteCardInput(item)) },
                     )
                 }
             }
@@ -1154,14 +1214,46 @@ private fun QuestInput.v0971MobilityLine(): String {
     }
 }
 
-private fun QuestInput.v0971RouteCardInput(title: String, reason: String): QuestInput {
+private fun QuestInput.v0971RouteCardInput(item: RouteFeedItem): QuestInput {
+    val strategy = v0972StrategyFor(item)
+    val cleanNote = note
+        ?.lineSequence()
+        ?.filterNot { it.trim().startsWith("TP_INTENT_") }
+        ?.joinToString("\n")
+        ?.takeIf { it.isNotBlank() }
+    val signals = (listOfNotNull(city, item.scenarioKey) + item.chips + item.routeStops.take(2))
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
+        .take(5)
     return copy(
         note = listOfNotNull(
-            "V0.9.71 route-card-start: $title",
-            reason.takeIf { it.isNotBlank() },
-            note,
-        ).joinToString("。"),
+            cleanNote,
+            "TP_INTENT_TITLE=${item.title}",
+            "TP_INTENT_SUMMARY=${item.reason}",
+            "TP_INTENT_STRATEGY=$strategy",
+            "TP_INTENT_STRATEGY_LABEL=${item.title.v0971ShortTitle()}",
+            "TP_INTENT_SIGNALS=${signals.joinToString("|")}",
+            "TP_INTENT_REASON=${item.reason}",
+            "TP_INTENT_TRADEOFF=${item.proof}",
+            "TP_INTENT_SOURCE=${item.sourceStatus}",
+            "TP_INTENT_CARD_ID=${item.id}",
+            "V0.9.72 route-card-start=${item.id}",
+        ).joinToString("\n"),
     )
+}
+
+private fun v0972StrategyFor(item: RouteFeedItem): String {
+    val search = item.v0971SearchText().lowercase()
+    return when {
+        item.id.contains("solo") || item.scenarioKey.contains("solo") -> "quiet"
+        item.id.contains("friend") || item.scenarioKey.contains("friend") -> "lively"
+        item.id.contains("date") || item.scenarioKey.contains("date") -> "cinema"
+        search.contains("rain") || search.contains("indoor") -> "indoor"
+        search.contains("100") || search.contains("budget") -> "budget"
+        search.contains("less") || search.contains("walk") || search.contains("short") -> "short"
+        else -> "surprise"
+    }
 }
 
 private fun String.v0971ShortTitle(): String {

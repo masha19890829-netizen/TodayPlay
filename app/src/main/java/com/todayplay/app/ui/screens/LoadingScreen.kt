@@ -67,7 +67,7 @@ import com.todayplay.app.ui.theme.WarmCream
 import com.todayplay.app.ui.theme.WarmGray
 import kotlinx.coroutines.delay
 
-private const val LoadingSuccessHoldMillis = 1800L
+private const val LoadingSuccessHoldMillis = 500L
 
 @Composable
 fun LoadingScreen(

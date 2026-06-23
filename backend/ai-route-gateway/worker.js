@@ -2,7 +2,7 @@ const DEFAULT_KIMI_BASE_URL = "https://api.moonshot.cn/v1";
 const DEFAULT_KIMI_MODEL = "moonshot-v1-8k";
 const MAX_FREE_TEXT_LENGTH = 600;
 const MAX_CANDIDATE_STOPS = 12;
-const DEFAULT_KIMI_TIMEOUT_MS = 25000;
+const DEFAULT_KIMI_TIMEOUT_MS = 3000;
 const LOCAL_ANDROID_HOSTS = new Set(["10.0.2.2", "127.0.0.1", "localhost"]);
 
 export default {

@@ -6,6 +6,7 @@ import com.todayplay.app.model.RouteStop
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
 import java.net.URL
 
 class AiQuestGenerator(
@@ -24,7 +25,11 @@ class AiQuestGenerator(
         if (candidateStops.isEmpty()) return localQuest.withFallbackTag()
 
         val payload = buildPayload(input, candidateStops)
-        val response = runCatching { requestGateway(endpoint, payload) }.getOrElse {
+        val response = try {
+            requestGateway(endpoint, payload)
+        } catch (_: SocketTimeoutException) {
+            return localQuest.withFallbackTag("gateway_timeout")
+        } catch (_: Exception) {
             return localQuest.withFallbackTag("android_gateway_request_failed")
         }
         if (response.optBoolean("usedFallback", true)) {
@@ -109,24 +114,27 @@ class AiQuestGenerator(
     private fun requestGateway(endpoint: String, payload: JSONObject): JSONObject {
         val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
-            connectTimeout = 7000
-            readTimeout = 28000
+            connectTimeout = FAST_GATEWAY_CONNECT_TIMEOUT_MS
+            readTimeout = FAST_GATEWAY_READ_TIMEOUT_MS
             doOutput = true
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
             setRequestProperty("Accept", "application/json")
         }
-        connection.outputStream.use { stream ->
-            stream.write(payload.toString().toByteArray(Charsets.UTF_8))
+        try {
+            connection.outputStream.use { stream ->
+                stream.write(payload.toString().toByteArray(Charsets.UTF_8))
+            }
+            val code = connection.responseCode
+            val body = if (code in 200..299) {
+                connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            } else {
+                connection.errorStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+            }
+            if (code !in 200..299) return JSONObject().put("usedFallback", true).put("reason", "gateway_http_$code")
+            return JSONObject(body)
+        } finally {
+            connection.disconnect()
         }
-        val code = connection.responseCode
-        val body = if (code in 200..299) {
-            connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-        } else {
-            connection.errorStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
-        }
-        connection.disconnect()
-        if (code !in 200..299) return JSONObject().put("usedFallback", true).put("reason", "gateway_http_$code")
-        return JSONObject(body)
     }
 
     private fun Quest.withFallbackTag(reason: String? = null): Quest {
@@ -175,5 +183,10 @@ class AiQuestGenerator(
                 optString(index).takeIf { it.isNotBlank() }?.let { add(it) }
             }
         }
+    }
+
+    private companion object {
+        const val FAST_GATEWAY_CONNECT_TIMEOUT_MS = 800
+        const val FAST_GATEWAY_READ_TIMEOUT_MS = 2200
     }
 }

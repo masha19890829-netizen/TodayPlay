@@ -83,6 +83,16 @@ def main() -> int:
             "The new home should show tappable route cards before explanatory text, keep free-text input secondary, and clamp labels on phone, foldable, and landscape screens.",
         ),
         (
+            "V0.9.72 prompt entry does not cover route cards",
+            "V0972CompactPromptEntry" in home_text
+            and "if (!promptOpen)" in home_text
+            and "compact -> 26.dp" in home_text
+            and "compact -> 2" in home_text
+            and "TP_INTENT_CARD_ID" in home_text,
+            str(home),
+            "The one-sentence prompt should live inside the scroll feed instead of floating over card titles or actions on phone, foldable, and landscape screens.",
+        ),
+        (
             "Card flow width classes",
             "BoxWithConstraints" in create_text
             and "maxWidth < 360.dp" in create_text

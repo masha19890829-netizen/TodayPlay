@@ -70,6 +70,8 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
     build_gradle = read_text(root / "app" / "build.gradle.kts")
     release_config_template = read_text(root / "release_config.template.properties")
     ai_worker = read_text(root / "backend" / "ai-route-gateway" / "worker.js")
+    ai_worker_dev_vars = read_text(root / "backend" / "ai-route-gateway" / ".dev.vars.example")
+    ai_worker_readme = read_text(root / "backend" / "ai-route-gateway" / "README.md")
     all_app_sources = "\n".join(
         read_text(path)
         for path in app_root.rglob("*.kt")
@@ -86,9 +88,9 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         })
 
     add(
-        "V0.9.71 route-card-first version metadata",
-        'versionName = "0.9.71"' in build_gradle and "versionCode = 88" in build_gradle,
-        "expected versionName=0.9.71 and versionCode=88",
+        "V0.9.72 fast-fallback route-card version metadata",
+        'versionName = "0.9.72"' in build_gradle and "versionCode = 89" in build_gradle,
+        "expected versionName=0.9.72 and versionCode=89",
         "Keep every external-test APK versioned independently so testers never install an ambiguous build.",
     )
 
@@ -235,6 +237,33 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         and "TodayPlayLocale.entries.forEach" not in home_screen[:home_screen.find("return")],
         f"homeTokens={v0971_route_card_home_tokens}; truthTokens={v0971_card_truth_tokens}",
         "Keep the first screen as tappable waterfall route cards with short chips, shuffle, local sample/source labels, and the free-text prompt as a secondary floating action.",
+    )
+
+    v0972_fast_fallback_tokens = [
+        "SocketTimeoutException",
+        "FAST_GATEWAY_CONNECT_TIMEOUT_MS = 800",
+        "FAST_GATEWAY_READ_TIMEOUT_MS = 2200",
+        "connection.disconnect()",
+        "LoadingSuccessHoldMillis = 500L",
+        "const DEFAULT_KIMI_TIMEOUT_MS = 3000",
+        "KIMI_TIMEOUT_MS=3000",
+    ]
+    v0972_route_card_inheritance_tokens = [
+        "V0972CompactPromptEntry",
+        "if (!promptOpen)",
+        "compact -> 26.dp",
+        "TP_INTENT_CARD_ID",
+        "TP_INTENT_STRATEGY=$strategy",
+        "V0.9.72 route-card-start",
+        "v0972StrategyFor",
+        "onGenerate(item.input.v0971RouteCardInput(item))",
+    ]
+    add(
+        "V0.9.72 fast AI fallback, route-card inheritance, and compact prompt guard",
+        has_all(ai_generator + loading_screen + ai_worker + ai_worker_dev_vars + ai_worker_readme, v0972_fast_fallback_tokens)
+        and has_all(home_screen, v0972_route_card_inheritance_tokens),
+        f"fallbackTokens={v0972_fast_fallback_tokens}; homeTokens={v0972_route_card_inheritance_tokens}",
+        "Keep route-card starts under the 8-second QA ceiling, preserve the tapped card intent in generated results, and prevent the small-screen prompt entry from covering cards.",
     )
 
     ai_boundary_tokens = [

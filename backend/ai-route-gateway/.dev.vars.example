@@ -5,7 +5,7 @@ AI_PROVIDER=kimi
 KIMI_API_KEY=sk-your-kimi-api-key-here
 KIMI_BASE_URL=https://api.moonshot.cn/v1
 KIMI_MODEL=moonshot-v1-8k
-KIMI_TIMEOUT_MS=25000
+KIMI_TIMEOUT_MS=3000
 
 # Optional app-to-gateway shared secret for local/dev testing.
 # Keep this backend-only until the Android client auth design is finalized.
