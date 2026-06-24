@@ -88,9 +88,9 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         })
 
     add(
-        "V0.9.72 fast-fallback route-card version metadata",
-        'versionName = "0.9.72"' in build_gradle and "versionCode = 89" in build_gradle,
-        "expected versionName=0.9.72 and versionCode=89",
+        "V0.9.73 quiet-waterfall version metadata",
+        'versionName = "0.9.73"' in build_gradle and "versionCode = 90" in build_gradle,
+        "expected versionName=0.9.73 and versionCode=90",
         "Keep every external-test APK versioned independently so testers never install an ambiguous build.",
     )
 
@@ -216,7 +216,7 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         "低预算",
         "少走路",
         "TodayPlay · $city",
-        "val useTwoColumns = forceTwoColumns && maxWidth >= 318.dp",
+        "val useTwoColumns = forceTwoColumns && maxWidth >= 360.dp",
     ]
     v0971_card_truth_tokens = [
         "contentStatus: String",
@@ -264,6 +264,32 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
         and has_all(home_screen, v0972_route_card_inheritance_tokens),
         f"fallbackTokens={v0972_fast_fallback_tokens}; homeTokens={v0972_route_card_inheritance_tokens}",
         "Keep route-card starts under the 8-second QA ceiling, preserve the tapped card intent in generated results, and prevent the small-screen prompt entry from covering cards.",
+    )
+
+    v0973_quiet_waterfall_tokens = [
+        "QuietRouteCard",
+        "OneSentencePromptSheet",
+        "item.routeStops.take(2)",
+        "val useTwoColumns = forceTwoColumns && maxWidth >= 360.dp",
+        "V0.9.73 quiet-card-start",
+    ]
+    v0973_live_result_tokens = [
+        "LiveRouteFirstScreen",
+        "resultMaxWidth",
+        "val resultCompactHeight = maxHeight < 640.dp",
+        "widthIn(max = resultMaxWidth)",
+        "RouteSketchMap(",
+        ".height(if (compact) 42.dp else 132.dp)",
+        "currentRunnableStop",
+        "plan.personalizationReasons.firstOrNull()",
+    ]
+    add(
+        "V0.9.73 quiet waterfall and live route first screen",
+        has_all(home_screen, v0973_quiet_waterfall_tokens)
+        and has_all(result_screen, v0973_live_result_tokens)
+        and result_screen.find("LiveRouteFirstScreen(") < result_screen.find("TodayQuestTicketCover("),
+        f"homeTokens={v0973_quiet_waterfall_tokens}; resultTokens={v0973_live_result_tokens}",
+        "Keep the first screen visually light: route cards should be proof-first and short, while result pages start with map/current-stop action before longer ticket details.",
     )
 
     ai_boundary_tokens = [
@@ -611,8 +637,9 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
     )
 
     result_external_test_tokens = [
-        ".height(178.dp)",
-        ".height(132.dp)",
+        "LiveRouteFirstScreen",
+        "RouteSketchMap(plan = plan, currentStop = currentStop, record = record, compact = compactHeight)",
+        "currentRunnableStop(record)",
         "KawaiiChip(text = copy.executionOpenMap",
         "copy.executionCompleteStop(currentStop.checkInTask.rewardPoints)",
         "RouteProgressTimeline(",
@@ -620,6 +647,8 @@ def audit(project_root: Path) -> tuple[list[dict[str, str]], str]:
     add(
         "External-test result first action exposure",
         has_all(result_screen, result_external_test_tokens)
+        and result_screen.find("LiveRouteFirstScreen(") < result_screen.find("TodayQuestTicketCover(")
+        and result_screen.find("KawaiiChip(text = copy.executionOpenMap") < result_screen.find("RouteProgressTimeline(")
         and result_screen.find("copy.executionCompleteStop(currentStop.checkInTask.rewardPoints)") < result_screen.find("RouteProgressTimeline("),
         f"tokens={result_external_test_tokens}",
         "Keep the result page compact enough that testers see the current stop and primary route action before timeline/detail overflow.",

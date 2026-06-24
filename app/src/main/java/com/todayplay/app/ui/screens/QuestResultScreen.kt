@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -130,6 +131,44 @@ fun QuestResultScreen(
         progressState.statusFor(stop.checkInTask.taskId).isResolved()
     } ?: 0)
     val progress = (resolvedSteps.toFloat() / totalSteps.toFloat()).coerceIn(0f, 1f)
+    val routeCopy = routePlaybookStrings(locale)
+    val openRouteStopMap: (RouteStop) -> Unit = { stop ->
+        MapNavigator.openInAmap(context, stop.navigationAction, systemCopy)
+    }
+    val toggleRouteStopCheckIn: (RouteStop) -> Unit = { stop ->
+        val nextStatus = if (progressState.statusFor(stop.checkInTask.taskId) == TaskStatus.Completed) {
+            TaskStatus.Pending
+        } else {
+            TaskStatus.Completed
+        }
+        onUpdateTaskStatus(stop.checkInTask.taskId, nextStatus)
+    }
+    val toggleRouteStopSwap: (RouteStop) -> Unit = { stop ->
+        val nextStatus = if (progressState.statusFor(stop.checkInTask.taskId) == TaskStatus.Skipped) {
+            TaskStatus.Pending
+        } else {
+            TaskStatus.Skipped
+        }
+        onUpdateTaskStatus(stop.checkInTask.taskId, nextStatus)
+    }
+    val replaceRouteStop: (RouteStop) -> Unit = { stop ->
+        val replaced = onReplaceRouteStop(stop.stopId)
+        val message = if (replaced) {
+            routeCopy.stopRerollDone
+        } else {
+            routeCopy.stopRerollUnavailable
+        }
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    }
+    val restoreRouteStop: () -> Unit = {
+        val restored = onRestoreRouteStop()
+        val message = if (restored) {
+            routeCopy.stopRestoreDone
+        } else {
+            routeCopy.stopRestoreUnavailable
+        }
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    }
 
     LaunchedEffect(quest) {
         visibleCount = 0
@@ -143,202 +182,189 @@ fun QuestResultScreen(
             CuteTopBar(title = copy.topTitle, subtitle = copy.topSubtitle, onBack = onBack, action = copy.saveAction, onAction = onSave)
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val horizontalPadding = if (maxWidth < 360.dp) 14.dp else 18.dp
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .navigationBarsPadding(),
-                contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                item {
-                    ResultHero(quest, copy)
-                }
-                if (itineraryPlan != null) {
-                    item {
-                        FadeItem(visibleCount >= 1) {
-                            TodayQuestTicketCover(record = record, locale = locale)
-                        }
-                    }
-                    if (record.isTimeCinemaRoute()) {
+                val resultMaxWidth = if (maxWidth >= 720.dp) 760.dp else 560.dp
+                val resultCompactHeight = maxHeight < 640.dp
+                LazyColumn(
+                    modifier = Modifier
+                        .widthIn(max = resultMaxWidth)
+                        .fillMaxWidth()
+                        .fillMaxHeight()
+                        .align(Alignment.TopCenter)
+                        .navigationBarsPadding(),
+                    contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = if (resultCompactHeight) 6.dp else 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (resultCompactHeight) 10.dp else 14.dp),
+                ) {
+                    if (itineraryPlan != null) {
                         item {
-                            FadeItem(visibleCount >= 2) {
-                                TimeCinemaTicketCard(
+                            FadeItem(visibleCount >= 1) {
+                                LiveRouteFirstScreen(
                                     record = record,
                                     locale = locale,
-                                    onOpenMap = { stop -> MapNavigator.openInAmap(context, stop.navigationAction, systemCopy) },
+                                    onOpenMap = openRouteStopMap,
+                                    onCheckIn = toggleRouteStopCheckIn,
+                                    onUseSwap = toggleRouteStopSwap,
+                                    onPreviewReplacement = { stop -> onPreviewRouteStopReplacement(stop.stopId) },
+                                    onReplaceStop = replaceRouteStop,
+                                    onRestoreStop = restoreRouteStop,
+                                    onTuneRoute = onTuneRoute,
+                                    compactHeight = resultCompactHeight,
+                                )
+                            }
+                        }
+                        itineraryPlan.stops.forEach { stop ->
+                            item {
+                                FadeItem(visibleCount >= 2) {
+                                    RouteStopCard(
+                                        stop = stop,
+                                        status = progressState.statusFor(stop.checkInTask.taskId),
+                                        restoreSnapshot = progressState.lastRouteStopRestore?.takeIf { snapshot ->
+                                            snapshot.stopId == stop.stopId || snapshot.order == stop.order
+                                        },
+                                        copy = copy,
+                                        playbookCopy = routeCopy,
+                                        onOpenMap = { openRouteStopMap(stop) },
+                                        onCheckIn = { toggleRouteStopCheckIn(stop) },
+                                        onUseSwap = { toggleRouteStopSwap(stop) },
+                                        onPreviewReplacement = { onPreviewRouteStopReplacement(stop.stopId) },
+                                        onReplaceStop = { replaceRouteStop(stop) },
+                                        onRestoreStop = restoreRouteStop,
+                                    )
+                                }
+                            }
+                        }
+                        item {
+                            FadeItem(visibleCount >= 3) {
+                                RoutePlaybookCard(record, locale)
+                            }
+                        }
+                        item {
+                            FadeItem(visibleCount >= 4) {
+                                MissionSummaryCard(quest = quest, progress = progress, completed = resolvedSteps, total = totalSteps, copy = copy)
+                            }
+                        }
+                        item {
+                            FadeItem(visibleCount >= 5) {
+                                ResultHero(quest, copy)
+                            }
+                        }
+                        item {
+                            FadeItem(visibleCount >= 6) {
+                                TodayQuestTicketCover(record = record, locale = locale)
+                            }
+                        }
+                        if (record.isTimeCinemaRoute()) {
+                            item {
+                                FadeItem(visibleCount >= 7) {
+                                    TimeCinemaTicketCard(
+                                        record = record,
+                                        locale = locale,
+                                        onOpenMap = openRouteStopMap,
+                                    )
+                                }
+                            }
+                        }
+                        item {
+                            FadeItem(visibleCount >= 8) {
+                                PersonalFitCardV2(record = record, locale = locale)
+                            }
+                        }
+                        item {
+                            FadeItem(visibleCount >= 9) {
+                                RouteTuneCard(currentStrategy = itineraryPlan.personalizationStrategy, onTuneRoute = onTuneRoute)
+                            }
+                        }
+                        item {
+                            FadeItem(visibleCount >= 10) {
+                                ItineraryOverviewCard(record, copy)
+                            }
+                        }
+                        item {
+                            FadeItem(visibleCount >= 10) {
+                                RouteVisualPreviewCard(
+                                    record = record,
+                                    locale = locale,
+                                    onOpenMap = openRouteStopMap,
+                                )
+                            }
+                        }
+                        item {
+                            FadeItem(visibleCount >= 10) {
+                                RouteExecutionCard(
+                                    record = record,
+                                    locale = locale,
+                                    onOpenMap = openRouteStopMap,
+                                    onCheckIn = toggleRouteStopCheckIn,
+                                )
+                            }
+                        }
+                    } else {
+                        item {
+                            ResultHero(quest, copy)
+                        }
+                        item {
+                            FadeItem(visibleCount >= 1) {
+                                MissionSummaryCard(quest = quest, progress = progress, completed = resolvedSteps, total = totalSteps, copy = copy)
+                            }
+                        }
+                    }
+                    quest.tasks.forEachIndexed { index, task ->
+                        item {
+                            FadeItem(visibleCount >= index + 6) {
+                                PlayableTaskCard(
+                                    index = index + 1,
+                                    task = task,
+                                    status = progressState.statusFor(task.taskId),
+                                    feedbackReasons = progressState.feedbackFor(task.taskId),
+                                    copy = copy,
+                                    onStatusChange = { status -> onUpdateTaskStatus(task.taskId, status) },
+                                    onFeedback = { reason -> onToggleFeedback(task.taskId, reason) },
                                 )
                             }
                         }
                     }
                     item {
-                        FadeItem(visibleCount >= 3) {
-                            PersonalFitCardV2(record = record, locale = locale)
-                        }
-                    }
-                    item {
-                        FadeItem(visibleCount >= 4) {
-                            RouteTuneCard(currentStrategy = itineraryPlan.personalizationStrategy, onTuneRoute = onTuneRoute)
-                        }
-                    }
-                    item {
                         FadeItem(visibleCount >= 5) {
-                            RouteVisualPreviewCard(
-                                record = record,
-                                locale = locale,
-                                onOpenMap = { stop -> MapNavigator.openInAmap(context, stop.navigationAction, systemCopy) },
+                            HiddenTaskCard(
+                                quest = quest,
+                                status = progressState.statusFor(quest.hiddenTask.taskId),
+                                copy = copy,
+                                onStatusChange = { status -> onUpdateTaskStatus(quest.hiddenTask.taskId, status) },
                             )
                         }
                     }
                     item {
                         FadeItem(visibleCount >= 6) {
-                            RouteExecutionCard(
-                                record = record,
-                                locale = locale,
-                                onOpenMap = { stop -> MapNavigator.openInAmap(context, stop.navigationAction, systemCopy) },
-                                onCheckIn = { stop ->
-                                    val nextStatus = if (progressState.statusFor(stop.checkInTask.taskId) == TaskStatus.Completed) {
-                                        TaskStatus.Pending
-                                    } else {
-                                        TaskStatus.Completed
-                                    }
-                                    onUpdateTaskStatus(stop.checkInTask.taskId, nextStatus)
-                                },
-                            )
+                            DialogueCard(quest, copy)
                         }
                     }
                     item {
                         FadeItem(visibleCount >= 7) {
-                            MissionSummaryCard(quest = quest, progress = progress, completed = resolvedSteps, total = totalSteps, copy = copy)
+                            BackupPlanCard(quest, copy)
                         }
                     }
                     item {
                         FadeItem(visibleCount >= 8) {
-                            ItineraryOverviewCard(record, copy)
-                        }
-                    }
-                    item {
-                        FadeItem(visibleCount >= 9) {
-                            RoutePlaybookCard(record, locale)
-                        }
-                    }
-                    itineraryPlan.stops.forEach { stop ->
-                        item {
-                            FadeItem(visibleCount >= 10) {
-                                RouteStopCard(
-                                    stop = stop,
-                                    status = progressState.statusFor(stop.checkInTask.taskId),
-                                    restoreSnapshot = progressState.lastRouteStopRestore?.takeIf { snapshot ->
-                                        snapshot.stopId == stop.stopId || snapshot.order == stop.order
-                                    },
-                                    copy = copy,
-                                    playbookCopy = routePlaybookStrings(locale),
-                                    onOpenMap = { MapNavigator.openInAmap(context, stop.navigationAction, systemCopy) },
-                                    onCheckIn = {
-                                        val nextStatus = if (progressState.statusFor(stop.checkInTask.taskId) == TaskStatus.Completed) {
-                                            TaskStatus.Pending
-                                        } else {
-                                            TaskStatus.Completed
-                                        }
-                                        onUpdateTaskStatus(stop.checkInTask.taskId, nextStatus)
-                                    },
-                                    onUseSwap = {
-                                        val nextStatus = if (progressState.statusFor(stop.checkInTask.taskId) == TaskStatus.Skipped) {
-                                            TaskStatus.Pending
-                                        } else {
-                                            TaskStatus.Skipped
-                                        }
-                                        onUpdateTaskStatus(stop.checkInTask.taskId, nextStatus)
-                                    },
-                                    onPreviewReplacement = {
-                                        onPreviewRouteStopReplacement(stop.stopId)
-                                    },
-                                    onReplaceStop = {
-                                        val replaced = onReplaceRouteStop(stop.stopId)
-                                        val message = if (replaced) {
-                                            routePlaybookStrings(locale).stopRerollDone
-                                        } else {
-                                            routePlaybookStrings(locale).stopRerollUnavailable
-                                        }
-                                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                    },
-                                    onRestoreStop = {
-                                        val restored = onRestoreRouteStop()
-                                        val message = if (restored) {
-                                            routePlaybookStrings(locale).stopRestoreDone
-                                        } else {
-                                            routePlaybookStrings(locale).stopRestoreUnavailable
-                                        }
-                                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                    },
-                                )
+                            TicketCard {
+                                Text(copy.photoMissionTitle, color = CherryPressed, style = MaterialTheme.typography.labelLarge)
+                                Spacer(Modifier.height(8.dp))
+                                Text(quest.photoMission, color = InkBlack, style = MaterialTheme.typography.bodyLarge)
+                                Spacer(Modifier.height(14.dp))
+                                Text(copy.endingRitualTitle, color = CherryPressed, style = MaterialTheme.typography.labelLarge)
+                                Spacer(Modifier.height(8.dp))
+                                Text(quest.endingRitual, color = InkBlack, style = MaterialTheme.typography.bodyLarge)
                             }
                         }
                     }
-                } else {
                     item {
-                        FadeItem(visibleCount >= 1) {
-                            MissionSummaryCard(quest = quest, progress = progress, completed = resolvedSteps, total = totalSteps, copy = copy)
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 24.dp)) {
+                            HeartPrimaryButton(copy.shareCta, onClick = onShare)
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                GhostButton(copy.regenerate, onClick = onRegenerate, modifier = Modifier.weight(1f))
+                                GhostButton(copy.backHome, onClick = onHome, modifier = Modifier.weight(1f))
+                            }
                         }
                     }
                 }
-                quest.tasks.forEachIndexed { index, task ->
-                    item {
-                        FadeItem(visibleCount >= index + 6) {
-                            PlayableTaskCard(
-                                index = index + 1,
-                                task = task,
-                                status = progressState.statusFor(task.taskId),
-                                feedbackReasons = progressState.feedbackFor(task.taskId),
-                                copy = copy,
-                                onStatusChange = { status -> onUpdateTaskStatus(task.taskId, status) },
-                                onFeedback = { reason -> onToggleFeedback(task.taskId, reason) },
-                            )
-                        }
-                    }
-                }
-                item {
-                    FadeItem(visibleCount >= 5) {
-                        HiddenTaskCard(
-                            quest = quest,
-                            status = progressState.statusFor(quest.hiddenTask.taskId),
-                            copy = copy,
-                            onStatusChange = { status -> onUpdateTaskStatus(quest.hiddenTask.taskId, status) },
-                        )
-                    }
-                }
-                item {
-                    FadeItem(visibleCount >= 6) {
-                        DialogueCard(quest, copy)
-                    }
-                }
-                item {
-                    FadeItem(visibleCount >= 7) {
-                        BackupPlanCard(quest, copy)
-                    }
-                }
-                item {
-                    FadeItem(visibleCount >= 8) {
-                        TicketCard {
-                            Text(copy.photoMissionTitle, color = CherryPressed, style = MaterialTheme.typography.labelLarge)
-                            Spacer(Modifier.height(8.dp))
-                            Text(quest.photoMission, color = InkBlack, style = MaterialTheme.typography.bodyLarge)
-                            Spacer(Modifier.height(14.dp))
-                            Text(copy.endingRitualTitle, color = CherryPressed, style = MaterialTheme.typography.labelLarge)
-                            Spacer(Modifier.height(8.dp))
-                            Text(quest.endingRitual, color = InkBlack, style = MaterialTheme.typography.bodyLarge)
-                        }
-                    }
-                }
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 24.dp)) {
-                        HeartPrimaryButton(copy.shareCta, onClick = onShare)
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            GhostButton(copy.regenerate, onClick = onRegenerate, modifier = Modifier.weight(1f))
-                            GhostButton(copy.backHome, onClick = onHome, modifier = Modifier.weight(1f))
-                        }
-                    }
-                }
-            }
             }
         }
     }
@@ -351,6 +377,229 @@ private fun FadeItem(visible: Boolean, content: @Composable () -> Unit) {
         enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 }),
     ) {
         content()
+    }
+}
+
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+private fun LiveRouteFirstScreen(
+    record: QuestRecord,
+    locale: TodayPlayLocale,
+    onOpenMap: (RouteStop) -> Unit,
+    onCheckIn: (RouteStop) -> Unit,
+    onUseSwap: (RouteStop) -> Unit,
+    onPreviewReplacement: (RouteStop) -> RouteStopReplacementPreview?,
+    onReplaceStop: (RouteStop) -> Unit,
+    onRestoreStop: () -> Unit,
+    onTuneRoute: (String) -> Unit,
+    compactHeight: Boolean = false,
+) {
+    val plan = record.quest.itineraryPlan ?: return
+    val copy = routePlaybookStrings(locale)
+    val context = LocalContext.current
+    val currentStop = currentRunnableStop(record) ?: plan.stops.firstOrNull() ?: return
+    val status = record.progress.statusFor(currentStop.checkInTask.taskId)
+    val checkedIn = status == TaskStatus.Completed
+    val swapped = status == TaskStatus.Skipped
+    val resolvedStopCount = plan.stops.count { stop ->
+        record.progress.statusFor(stop.checkInTask.taskId).isResolved()
+    }
+    val allDone = resolvedStopCount == plan.stops.size
+    val nextStop = plan.stops
+        .dropWhile { stop -> stop.stopId != currentStop.stopId }
+        .drop(1)
+        .firstOrNull { stop -> !record.progress.statusFor(stop.checkInTask.taskId).isResolved() }
+    val restoreSnapshot = record.progress.lastRouteStopRestore?.takeIf { snapshot ->
+        snapshot.stopId == currentStop.stopId || snapshot.order == currentStop.order
+    }
+    var replacementPreview by remember(currentStop.stopId, currentStop.poi.poiId) {
+        mutableStateOf<RouteStopReplacementPreview?>(null)
+    }
+    val liveRouteTitle = when (locale) {
+        TodayPlayLocale.SimplifiedChinese,
+        TodayPlayLocale.TraditionalChinese -> "\u8def\u7ebf\u73b0\u573a"
+        else -> "Live route first"
+    }
+    val liveRouteIntroLine = if (allDone) {
+        copy.executionAllDoneLine
+    } else {
+        when (locale) {
+            TodayPlayLocale.SimplifiedChinese,
+            TodayPlayLocale.TraditionalChinese -> "\u5148\u5230\u5f53\u524d\u7ad9\uff0c\u7d2f\u4e86\u5c31\u6362\u70b9\u3002"
+            else -> copy.executionReadyLine
+        }
+    }
+    val startActionLabel = when (locale) {
+        TodayPlayLocale.SimplifiedChinese,
+        TodayPlayLocale.TraditionalChinese -> "\u5f00\u59cb\u884c\u52a8"
+        else -> "Start action"
+    }
+    val lightAdjustLabel = when (locale) {
+        TodayPlayLocale.SimplifiedChinese,
+        TodayPlayLocale.TraditionalChinese -> "\u8f7b\u91cf\u4fee\u6539"
+        else -> "Light adjust"
+    }
+    val lessWalkingTune = when (locale) {
+        TodayPlayLocale.SimplifiedChinese,
+        TodayPlayLocale.TraditionalChinese -> "\u5c11\u8d70\u8def"
+        else -> "Less walking"
+    }
+    val moreIndoorTune = when (locale) {
+        TodayPlayLocale.SimplifiedChinese,
+        TodayPlayLocale.TraditionalChinese -> "\u66f4\u5ba4\u5185"
+        else -> "More indoor"
+    }
+
+    SoftCard(padding = if (compactHeight) 8.dp else 14.dp) {
+        SectionHeader("LIVE", liveRouteTitle, copy.executionEnglish)
+        if (!compactHeight) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                liveRouteIntroLine,
+                color = InkBlack,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(12.dp))
+        } else {
+            Spacer(Modifier.height(4.dp))
+        }
+        RouteSketchMap(plan = plan, currentStop = currentStop, record = record, compact = compactHeight)
+        Spacer(Modifier.height(if (compactHeight) 4.dp else 12.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(if (checkedIn) RoseGold.copy(alpha = 0.18f) else TicketBeige.copy(alpha = 0.55f))
+                .border(
+                    1.dp,
+                    if (checkedIn || swapped) CherryPressed.copy(alpha = 0.42f) else RoseGold.copy(alpha = 0.42f),
+                    RoundedCornerShape(18.dp),
+                )
+                .padding(if (compactHeight) 8.dp else 14.dp),
+        ) {
+            Text(copy.executionCurrentStopLabel, color = CherryPressed, style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.height(if (compactHeight) 3.dp else 6.dp))
+            Text(
+                "${currentStop.order}. ${currentStop.poi.name}",
+                color = InkBlack,
+                style = if (compactHeight) MaterialTheme.typography.titleMedium else MaterialTheme.typography.headlineSmall,
+                maxLines = if (compactHeight) 1 else 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(if (compactHeight) 2.dp else 4.dp))
+            Text(
+                currentStop.poi.district + " / " + currentStop.startTimeHint,
+                color = WarmGray,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(if (compactHeight) 4.dp else 10.dp))
+            Text(startActionLabel, color = CherryPressed, style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.height(if (compactHeight) 4.dp else 8.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                KawaiiChip(text = copy.executionOpenMap, selected = true, onClick = { onOpenMap(currentStop) })
+                KawaiiChip(
+                    text = if (checkedIn) copy.executionUndoCheckIn else copy.executionCompleteStop(currentStop.checkInTask.rewardPoints),
+                    selected = checkedIn,
+                    onClick = { onCheckIn(currentStop) },
+                )
+            }
+            if (!compactHeight) {
+                Spacer(Modifier.height(12.dp))
+                Text(lightAdjustLabel, color = CherryPressed, style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.height(8.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    KawaiiChip(
+                        text = if (swapped) copy.stopSwapSelected else copy.stopSwapAction,
+                        selected = swapped,
+                        onClick = { onUseSwap(currentStop) },
+                    )
+                    KawaiiChip(
+                        text = copy.stopRerollAction,
+                        selected = replacementPreview != null,
+                        onClick = {
+                            val preview = onPreviewReplacement(currentStop)
+                            if (preview == null) {
+                                Toast.makeText(context, copy.stopRerollUnavailable, Toast.LENGTH_SHORT).show()
+                            }
+                            replacementPreview = preview
+                        },
+                    )
+                    if (restoreSnapshot != null) {
+                        KawaiiChip(text = copy.stopRestoreAction, selected = false, onClick = onRestoreStop)
+                    }
+                    KawaiiChip(text = lessWalkingTune, selected = false, onClick = { onTuneRoute(lessWalkingTune) })
+                    KawaiiChip(text = moreIndoorTune, selected = false, onClick = { onTuneRoute(moreIndoorTune) })
+                }
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    currentStop.checkInTask.title,
+                    color = InkBlack,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    currentStop.checkInTask.description,
+                    color = WarmGray,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            replacementPreview?.let { preview ->
+                Spacer(Modifier.height(10.dp))
+                ReplacementPreviewPanel(
+                    preview = preview,
+                    playbookCopy = copy,
+                    onConfirm = {
+                        onReplaceStop(currentStop)
+                        replacementPreview = null
+                    },
+                    onCancel = {
+                        replacementPreview = null
+                    },
+                )
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            plan.stops.take(4).forEach { stop ->
+                RouteStopPill(
+                    order = stop.order,
+                    name = stop.poi.name,
+                    active = stop.stopId == currentStop.stopId,
+                    done = record.progress.statusFor(stop.checkInTask.taskId).isResolved(),
+                )
+            }
+        }
+        if (compactHeight) {
+            Spacer(Modifier.height(8.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                KawaiiChip(text = if (swapped) copy.stopSwapSelected else copy.stopSwapAction, selected = swapped, onClick = { onUseSwap(currentStop) })
+                KawaiiChip(text = lessWalkingTune, selected = false, onClick = { onTuneRoute(lessWalkingTune) })
+                KawaiiChip(text = moreIndoorTune, selected = false, onClick = { onTuneRoute(moreIndoorTune) })
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            ExecutionMetricTile(copy.executionProgressLabel, "$resolvedStopCount/${plan.stops.size}")
+            ExecutionMetricTile(copy.executionRewardLabel, "+${currentStop.checkInTask.rewardPoints}")
+            if (nextStop != null) {
+                ExecutionMetricTile(copy.executionNextStopLabel, "${nextStop.order}. ${nextStop.poi.name}")
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        RouteProgressTimeline(
+            stops = plan.stops,
+            record = record,
+            currentStop = currentStop,
+            copy = copy,
+        )
     }
 }
 
@@ -1372,6 +1621,7 @@ private fun RouteSketchMap(
     plan: ItineraryPlan,
     currentStop: RouteStop,
     record: QuestRecord,
+    compact: Boolean = false,
 ) {
     val transition = rememberInfiniteTransition(label = "route-sketch-map")
     val pulse by transition.animateFloat(
@@ -1383,11 +1633,12 @@ private fun RouteSketchMap(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(132.dp)
+            .height(if (compact) 42.dp else 132.dp)
             .clip(RoundedCornerShape(22.dp))
             .background(TicketBeige.copy(alpha = 0.55f))
             .border(1.dp, RoseGold.copy(alpha = 0.35f), RoundedCornerShape(22.dp)),
     ) {
+        val labelPadding = if (compact) 10.dp else 18.dp
         Canvas(modifier = Modifier.fillMaxSize()) {
             val points = listOf(
                 Offset(size.width * 0.12f, size.height * 0.72f),
@@ -1441,23 +1692,25 @@ private fun RouteSketchMap(
         Text(
             plan.city,
             color = InkBlack,
-            style = MaterialTheme.typography.titleLarge,
+            style = if (compact) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(18.dp),
+                .padding(labelPadding),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Text(
-            plan.bestPhotoTime,
-            color = CherryPressed,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(18.dp),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        if (!compact) {
+            Text(
+                plan.bestPhotoTime,
+                color = CherryPressed,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(labelPadding),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

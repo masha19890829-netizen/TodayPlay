@@ -74,7 +74,7 @@ def main() -> int:
             "V0971RouteCardHomeExperience" in home_text
             and "V0971WaterfallFeed" in home_text
             and "V0971RouteTicketCard" in home_text
-            and "val useTwoColumns = forceTwoColumns && maxWidth >= 318.dp" in home_text
+            and "val useTwoColumns = forceTwoColumns && maxWidth >= 360.dp" in home_text
             and "TextOverflow.Ellipsis" in home_text
             and "自己说一句" in home_text
             and "换一幕" in home_text
@@ -91,6 +91,16 @@ def main() -> int:
             and "TP_INTENT_CARD_ID" in home_text,
             str(home),
             "The one-sentence prompt should live inside the scroll feed instead of floating over card titles or actions on phone, foldable, and landscape screens.",
+        ),
+        (
+            "V0.9.73 quiet cards and one-sentence sheet",
+            "QuietRouteCard" in home_text
+            and "OneSentencePromptSheet" in home_text
+            and "item.routeStops.take(2)" in home_text
+            and "V0.9.73 quiet-card-start" in home_text
+            and "val useTwoColumns = forceTwoColumns && maxWidth >= 360.dp" in home_text,
+            str(home),
+            "Home route cards should stay visually light, preview only two stops, and use a one-sentence prompt entry without crowding narrow screens.",
         ),
         (
             "Card flow width classes",
@@ -129,6 +139,17 @@ def main() -> int:
             and "PaddingValues(horizontal = horizontalPadding" in result_text,
             str(result),
             "Route result list should reduce horizontal padding on narrow phones and foldable cover screens.",
+        ),
+        (
+            "V0.9.73 live result max-width guard",
+            "LiveRouteFirstScreen" in result_text
+            and "resultMaxWidth" in result_text
+            and "val resultCompactHeight = maxHeight < 640.dp" in result_text
+            and "widthIn(max = resultMaxWidth)" in result_text
+            and "RouteSketchMap(" in result_text
+            and "currentRunnableStop" in result_text,
+            str(result),
+            "Result pages should open with map/current-stop action and constrain content width on foldables, tablets, and landscape screens.",
         ),
         (
             "Result long place text guards",

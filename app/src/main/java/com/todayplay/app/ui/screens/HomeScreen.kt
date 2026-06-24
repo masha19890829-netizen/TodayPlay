@@ -594,7 +594,7 @@ private fun V0971RouteCardHomeExperience(
                 }
             }
             if (promptOpen) {
-                V0971SelfPromptPanel(
+                OneSentencePromptSheet(
                     baseInput = visibleFeed.firstOrNull()?.input ?: relations.first().input,
                     onDismiss = { promptOpen = false },
                     onGenerate = {
@@ -775,7 +775,7 @@ private fun V0971WaterfallFeed(
             .fillMaxWidth()
             .widthIn(max = 860.dp),
     ) {
-        val useTwoColumns = forceTwoColumns && maxWidth >= 318.dp
+        val useTwoColumns = forceTwoColumns && maxWidth >= 360.dp
         if (useTwoColumns) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -786,7 +786,7 @@ private fun V0971WaterfallFeed(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items.filterIndexed { index, _ -> index % 2 == 0 }.forEachIndexed { localIndex, item ->
-                        V0971RouteTicketCard(
+                        QuietRouteCard(
                             item = item,
                             copy = copy,
                             saved = item.id in savedRouteKeys,
@@ -801,7 +801,7 @@ private fun V0971WaterfallFeed(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items.filterIndexed { index, _ -> index % 2 == 1 }.forEachIndexed { localIndex, item ->
-                        V0971RouteTicketCard(
+                        QuietRouteCard(
                             item = item,
                             copy = copy,
                             saved = item.id in savedRouteKeys,
@@ -815,7 +815,7 @@ private fun V0971WaterfallFeed(
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items.forEachIndexed { index, item ->
-                    V0971RouteTicketCard(
+                    QuietRouteCard(
                         item = item,
                         copy = copy,
                         saved = item.id in savedRouteKeys,
@@ -829,9 +829,10 @@ private fun V0971WaterfallFeed(
     }
 }
 
+@Suppress("UNUSED_PARAMETER")
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun V0971RouteTicketCard(
+private fun QuietRouteCard(
     item: RouteFeedItem,
     copy: DiscoveryHomeCopy,
     saved: Boolean,
@@ -839,7 +840,7 @@ private fun V0971RouteTicketCard(
     onToggleSaved: () -> Unit,
     onGenerate: () -> Unit,
 ) {
-    val visualHeight = if (tall) 92.dp else 68.dp
+    val visualHeight = if (tall) 104.dp else 76.dp
     TicketCard {
         V0971TicketVisual(
             item = item,
@@ -857,24 +858,8 @@ private fun V0971RouteTicketCard(
         )
         Spacer(Modifier.height(5.dp))
         Text(
-            text = item.input.v0971MetaLine(),
+            text = item.input.v0973CityTimeLine(),
             color = WarmGray,
-            style = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Spacer(Modifier.height(5.dp))
-        Text(
-            text = item.input.v0971MobilityLine(),
-            color = WarmGray,
-            style = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Spacer(Modifier.height(5.dp))
-        Text(
-            text = "${item.contentStatus} · ${item.sourceStatus}",
-            color = CherryPressed,
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -884,21 +869,45 @@ private fun V0971RouteTicketCard(
             horizontalArrangement = Arrangement.spacedBy(5.dp),
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
-            item.routeStops.take(3).forEachIndexed { index, stop ->
+            item.routeStops.take(2).forEachIndexed { index, stop ->
                 V0971StopDot(index = index, text = stop)
             }
         }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = item.v0973QuietPromptLine(),
+            color = CherryPressed,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
         Spacer(Modifier.height(10.dp))
-        Row(
+        V0971MiniAction(
+            text = copy.start,
+            primary = true,
+            onClick = onGenerate,
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            V0971MiniAction(text = copy.start, primary = true, onClick = onGenerate, modifier = Modifier.weight(1f))
-            V0971MiniAction(text = if (saved) "已存" else "保存", onClick = onToggleSaved, modifier = Modifier.weight(1f))
-            V0971MiniAction(text = "邀约", onClick = onGenerate, modifier = Modifier.weight(1f))
-        }
+        )
     }
+}
+
+@Composable
+private fun V0971RouteTicketCard(
+    item: RouteFeedItem,
+    copy: DiscoveryHomeCopy,
+    saved: Boolean,
+    tall: Boolean,
+    onToggleSaved: () -> Unit,
+    onGenerate: () -> Unit,
+) {
+    QuietRouteCard(
+        item = item,
+        copy = copy,
+        saved = saved,
+        tall = tall,
+        onToggleSaved = onToggleSaved,
+        onGenerate = onGenerate,
+    )
 }
 
 @Composable
@@ -1083,6 +1092,21 @@ private fun V0971FloatingPromptButton(
     }
 }
 
+@Composable
+private fun OneSentencePromptSheet(
+    baseInput: QuestInput,
+    onDismiss: () -> Unit,
+    onGenerate: (QuestInput) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    V0971SelfPromptPanel(
+        baseInput = baseInput,
+        onDismiss = onDismiss,
+        onGenerate = onGenerate,
+        modifier = modifier,
+    )
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun V0971SelfPromptPanel(
@@ -1206,6 +1230,17 @@ private fun QuestInput.v0971MetaLine(): String {
     return listOf(cityName, time, budget).filter { it.isNotBlank() }.joinToString(" · ")
 }
 
+private fun QuestInput.v0973CityTimeLine(): String {
+    val cityName = city?.takeIf { it.isNotBlank() } ?: "同城"
+    return listOf(cityName, time).filter { it.isNotBlank() }.joinToString(" · ")
+}
+
+private fun RouteFeedItem.v0973QuietPromptLine(): String {
+    val relationHint = input.relationship.takeIf { it.isNotBlank() }
+    val reasonHint = reason.takeIf { it.isNotBlank() }
+    return listOfNotNull(relationHint, reasonHint).joinToString(" · ")
+}
+
 private fun QuestInput.v0971MobilityLine(): String {
     return when {
         moods.any { it.contains("不想走") || it.contains("少走") || it.contains("累") } -> "3站 · 少走路"
@@ -1239,6 +1274,7 @@ private fun QuestInput.v0971RouteCardInput(item: RouteFeedItem): QuestInput {
             "TP_INTENT_SOURCE=${item.sourceStatus}",
             "TP_INTENT_CARD_ID=${item.id}",
             "V0.9.72 route-card-start=${item.id}",
+            "V0.9.73 quiet-card-start=${item.id}",
         ).joinToString("\n"),
     )
 }
