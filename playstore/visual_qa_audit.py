@@ -117,6 +117,158 @@ DEVICE_EVIDENCE = [
 ]
 
 
+V0973_QA_SCREENSHOTS = [
+    EvidenceSpec(
+        "v0973_home",
+        "V0.9.73 home",
+        ("qa", "home"),
+        ("small", "fold", "foldable", "landscape", "loading", "result"),
+        "portrait",
+    ),
+    EvidenceSpec(
+        "v0973_loading",
+        "V0.9.73 loading",
+        ("qa", "loading"),
+    ),
+    EvidenceSpec(
+        "v0973_result",
+        "V0.9.73 result",
+        ("qa", "result"),
+        ("small", "fold", "foldable", "landscape"),
+        "portrait",
+    ),
+    EvidenceSpec(
+        "v0973_small_home",
+        "V0.9.73 small home",
+        ("qa", "small", "home"),
+        ("long", "result"),
+        "portrait",
+    ),
+    EvidenceSpec(
+        "v0973_small_result",
+        "V0.9.73 small result",
+        ("qa", "small", "result"),
+        ("long",),
+        "portrait",
+    ),
+    EvidenceSpec(
+        "v0973_foldable_home",
+        "V0.9.73 foldable home",
+        ("qa", "foldable", "home"),
+        ("landscape", "result"),
+        "portrait",
+    ),
+    EvidenceSpec(
+        "v0973_foldable_result",
+        "V0.9.73 foldable result",
+        ("qa", "foldable", "result"),
+        ("landscape",),
+        "portrait",
+    ),
+    EvidenceSpec(
+        "v0973_landscape_home",
+        "V0.9.73 landscape home",
+        ("qa", "landscape", "home"),
+        ("result", "loading"),
+        "landscape",
+    ),
+    EvidenceSpec(
+        "v0973_landscape_result",
+        "V0.9.73 landscape result",
+        ("qa", "landscape", "result"),
+        (),
+        "landscape",
+    ),
+]
+
+
+V0974_QA_SCREENSHOTS = [
+    EvidenceSpec(
+        "v0974_home",
+        "V0.9.74 home",
+        ("qa", "home"),
+        ("small", "fold", "foldable", "landscape", "long", "result", "loading"),
+        "portrait",
+    ),
+    EvidenceSpec("v0974_prompt", "V0.9.74 prompt", ("qa", "prompt")),
+    EvidenceSpec("v0974_candidates", "V0.9.74 candidates", ("qa", "candidates")),
+    EvidenceSpec("v0974_loading", "V0.9.74 loading", ("qa", "loading")),
+    EvidenceSpec(
+        "v0974_result",
+        "V0.9.74 result",
+        ("qa", "result"),
+        ("small", "fold", "foldable", "landscape", "long", "current"),
+        "portrait",
+    ),
+    EvidenceSpec("v0974_current_stop", "V0.9.74 current stop", ("qa", "current", "stop")),
+    EvidenceSpec(
+        "v0974_small_home",
+        "V0.9.74 small home",
+        ("qa", "small", "home"),
+        ("long", "result"),
+        "portrait",
+    ),
+    EvidenceSpec(
+        "v0974_small_result",
+        "V0.9.74 small result",
+        ("qa", "small", "result"),
+        ("long",),
+        "portrait",
+    ),
+    EvidenceSpec(
+        "v0974_small_long_copy_home",
+        "V0.9.74 small long-copy home",
+        ("qa", "small", "long", "copy", "home"),
+        ("result",),
+        "portrait",
+    ),
+    EvidenceSpec(
+        "v0974_small_long_copy_result",
+        "V0.9.74 small long-copy result",
+        ("qa", "small", "long", "copy", "result"),
+        (),
+        "portrait",
+    ),
+    EvidenceSpec(
+        "v0974_landscape_home",
+        "V0.9.74 landscape home",
+        ("qa", "landscape", "home"),
+        ("result", "loading"),
+        "landscape",
+    ),
+    EvidenceSpec(
+        "v0974_landscape_loading",
+        "V0.9.74 landscape loading",
+        ("qa", "landscape", "loading"),
+        (),
+        "landscape",
+    ),
+    EvidenceSpec(
+        "v0974_landscape_result",
+        "V0.9.74 landscape result",
+        ("qa", "landscape", "result"),
+        (),
+        "landscape",
+    ),
+    EvidenceSpec(
+        "v0974_foldable_home",
+        "V0.9.74 foldable home",
+        ("qa", "foldable", "home"),
+        ("result",),
+        "portrait",
+        min_width=600,
+    ),
+    EvidenceSpec(
+        "v0974_foldable_result",
+        "V0.9.74 foldable result",
+        ("qa", "foldable", "result"),
+        (),
+        "portrait",
+        min_width=600,
+    ),
+]
+
+
 def normalize_version(value: str | None) -> str | None:
     if value is None:
         return None
@@ -135,6 +287,24 @@ def version_tuple(path: Path) -> tuple[int, int, int] | None:
 
 def version_text(version: tuple[int, int, int]) -> str:
     return f"v{version[0]}.{version[1]}.{version[2]}"
+
+
+def parse_version_filter(value: str | None) -> tuple[int, int, int] | None:
+    if value is None:
+        return None
+    match = VERSION_RE.search(value)
+    if not match:
+        return None
+    return tuple(int(part) for part in match.groups())
+
+
+def specs_for_version(version: str | None) -> list[EvidenceSpec]:
+    parsed = parse_version_filter(version)
+    if parsed is not None and parsed >= (0, 9, 74):
+        return V0974_QA_SCREENSHOTS
+    if parsed is not None and parsed >= (0, 9, 73):
+        return V0973_QA_SCREENSHOTS
+    return FIXED_SCREENSHOTS + DEVICE_EVIDENCE
 
 
 def discover_version(pngs: Iterable[Path]) -> str | None:
@@ -303,7 +473,7 @@ def main(argv: list[str] | None = None) -> int:
         if version is None:
             version = discover_version(all_pngs)
         pngs = [path for path in all_pngs if version is None or version.lower() in path.name.lower()]
-        specs = FIXED_SCREENSHOTS + DEVICE_EVIDENCE
+        specs = specs_for_version(version)
         results = [evaluate_spec(pngs, spec) for spec in specs]
 
     if args.json:
